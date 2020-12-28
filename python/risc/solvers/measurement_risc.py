@@ -17,7 +17,7 @@ def raiseIfNan(A, error=None):
 
 
 
-class RiskSensitiveSolver(SolverAbstract):
+class MeasurementRiskSensitiveSolver(SolverAbstract):
     def __init__(self, shootingProblem, measurementModel, sensitivity):
         SolverAbstract.__init__(self, shootingProblem)
 
