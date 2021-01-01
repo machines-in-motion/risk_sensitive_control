@@ -1,0 +1,637 @@
+contact_plan:
+  effcnt_lf:
+  - - 0.000
+    - 0.250
+    - 0.200
+    - 0.142
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    - 1.000
+    - -1.000
+  - - 0.450
+    - 3.000
+    - 0.174
+    - 0.044
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    - 1.000
+    - -1.000
+  effcnt_lh:
+  - - 0.000
+    - 1.300
+    - -0.200
+    - 0.142
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    - 1.000
+    - -1.000
+  - - 1.500
+    - 3.000
+    - -0.226
+    - 0.044
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    - 1.000
+    - -1.000
+  effcnt_rf:
+  - - 0.000
+    - 0.950
+    - 0.200
+    - -0.142
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    - 1.000
+    - -1.000
+  - - 1.150
+    - 3.000
+    - 0.174
+    - -0.240
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    - 1.000
+    - -1.000
+  effcnt_rh:
+  - - 0.000
+    - 0.600
+    - -0.200
+    - -0.142
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    - 1.000
+    - -1.000
+  - - 0.800
+    - 3.000
+    - -0.226
+    - -0.240
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    - 1.000
+    - -1.000
+  effvia_lf: []
+  effvia_lh: []
+  effvia_rf: []
+  effvia_rh: []
+floor_height: 0.015
+initial_robot_configuration:
+  amom:
+  - 0.000
+  - 0.000
+  - 0.000
+  com:
+  - 0.000
+  - 0.000
+  - 0.170
+  eef_ctrl:
+    eef_frc_lf:
+    - 0.000
+    - 0.000
+    - 0.250
+    eef_frc_lh:
+    - 0.000
+    - 0.000
+    - 0.250
+    eef_frc_rf:
+    - 0.000
+    - 0.000
+    - 0.250
+    eef_frc_rh:
+    - 0.000
+    - 0.000
+    - 0.250
+  eef_pose:
+    eef_lf:
+    - 1.000
+    - 0.200
+    - 0.142
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    eef_lh:
+    - 1.000
+    - -0.200
+    - 0.142
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    eef_rf:
+    - 1.000
+    - 0.200
+    - -0.142
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+    eef_rh:
+    - 1.000
+    - -0.200
+    - -0.142
+    - 0.015
+    - 1.000
+    - 0.000
+    - 0.000
+    - 0.000
+  lmom:
+  - 0.000
+  - 0.000
+  - 0.000
+planner_variables:
+  active_dofs:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  base_viapoints:
+    via0:
+    - 1.400
+    - 0.000
+    - 0.000
+    - 0.000
+  com_displacement:
+  - 0.000
+  - 0.000
+  - 0.000
+  com_viapoints:
+    via0:
+    - 1.400
+    - -0.026
+    - -0.098
+    - 0.170
+  convergence_tolerance: 1e-2
+  cop_range_lf:
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  cop_range_lh:
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  cop_range_rf:
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  cop_range_rh:
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  default_joint_positions:
+  - 0.000
+  - 0.520
+  - -1.040
+  - 0.000
+  - 0.520
+  - -1.040
+  - 0.000
+  - -0.520
+  - 1.040
+  - 0.000
+  - -0.520
+  - 1.040
+  display_motion: true
+  eff_offset_lf:
+  - 0.200
+  - 0.142
+  - 0.000
+  eff_offset_lh:
+  - -0.200
+  - 0.142
+  - 0.000
+  eff_offset_rf:
+  - 0.200
+  - -0.142
+  - 0.000
+  eff_offset_rh:
+  - -0.200
+  - -0.142
+  - 0.000
+  external_force:
+  - 0.000
+  - 0.000
+  - 0.000
+  floor_height: 0.015
+  friction_coeff: 1.000
+  friction_cone: LinearCone
+  gravity: 9.810
+  has_torque_limits: false
+  heuristic: SoftConstraint
+  integration_step: 1e-2
+  is_time_horizon_fixed: true
+  joint_viapoints:
+    via0:
+    - 1.000
+    - 0.100
+    - -0.200
+    - 0.100
+    - -0.200
+    - -0.100
+    - 0.200
+    - -0.100
+    - 0.200
+  kd_iterations: 1
+  lambda_regularization: 1e-4
+  load_kinematics: true
+  max_convergence_iters: 50
+  max_eef_lengths:
+  - 0.290
+  - 0.290
+  - 0.290
+  - 0.290
+  max_joint_limits:
+  - 2.500
+  - 2.500
+  - 2.500
+  - 2.500
+  - 2.500
+  - 2.500
+  - 2.500
+  - 2.500
+  - 2.500
+  - 2.500
+  - 2.500
+  - 2.500
+  max_time_iterations: 50
+  max_time_residual_tolerance: 1e-3
+  max_torque_limits:
+  - 0.675
+  - 0.675
+  - 0.675
+  - 0.675
+  - 0.675
+  - 0.675
+  - 0.675
+  - 0.675
+  - 0.675
+  - 0.675
+  - 0.675
+  - 0.675
+  max_trajectory_iters: 5
+  min_joint_limits:
+  - -2.500
+  - -2.500
+  - -2.500
+  - -2.500
+  - -2.500
+  - -2.500
+  - -2.500
+  - -2.500
+  - -2.500
+  - -2.500
+  - -2.500
+  - -2.500
+  min_rel_height: 0.080
+  min_time_residual_improvement: 1e-5
+  min_torque_limits:
+  - -0.675
+  - -0.675
+  - -0.675
+  - -0.675
+  - -0.675
+  - -0.675
+  - -0.675
+  - -0.675
+  - -0.675
+  - -0.675
+  - -0.675
+  - -0.675
+  n_act_eefs: 4
+  num_base_viapoints: 0
+  num_com_viapoints: 1
+  num_dofs: 12
+  num_joint_viapoints: 0
+  num_subsamples: 3
+  p_com_tracking: 1.000
+  p_endeff_tracking: 10.000
+  reg_joint_position: 2.000
+  reg_orientation: 5.000
+  robot_mass: 2.978
+  slacks_penalty: 1e-2
+  store_data: true
+  swing_traj_via_z: 0.050
+  time_horizon: 1.500
+  time_range:
+  - 0.020
+  - 0.020
+  time_step: 0.020
+  torque_range:
+  - 0.000
+  - 0.000
+  use_default_solver_setting: false
+  w_amom:
+  - 1.000
+  - 1.000
+  - 100
+  w_amom_final:
+  - 10000.000
+  - 100000.000
+  - 100000.000
+  w_amom_track:
+  - 0.010
+  - 0.010
+  - 0.010
+  w_amomd:
+  - 10000.000
+  - 100000.000
+  - 100000.000
+  w_ang_mom_tracking: 5.000
+  w_com:
+  - 1.000
+  - 1.000
+  - 1.000
+  w_com_track:
+  - 1.000
+  - 1.000
+  - 1.000
+  w_com_via:
+  - 1000000.000
+  - 1000000.000
+  - 1000000.000
+  w_dfrc_arm:
+  - 0.000
+  - 0.000
+  - 0.000
+  w_dfrc_leg:
+  - 0.000
+  - 0.000
+  - 0.000
+  w_endeff_contact: 1.000
+  w_endeff_tracking: 1.000
+  w_frc_arm:
+  - 0.001
+  - 0.001
+  - 0.001
+  w_frc_leg:
+  - 0.001
+  - 0.001
+  - 0.001
+  w_joint_regularization: 0.001
+  w_kin_amom:
+  - 0.000
+  - 0.014
+  - 0.000
+  w_kin_amomd:
+  - 0.000
+  - 0.000
+  - 0.000
+  w_kin_base_ori:
+  - 0.000
+  - 0.000
+  - 0.000
+  w_kin_com:
+  - 1.000
+  - 1.420
+  - 1.000
+  w_kin_default_joints:
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  w_kin_eff_pos:
+  - 5.000
+  - 1.420
+  - 5.000
+  w_kin_eff_pos_nonact:
+  - 1.000
+  - 1.420
+  - 1.000
+  w_kin_joint_acc:
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-8
+  - 1e+4
+  - 1e+4
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  - 1e-6
+  w_kin_joint_vel:
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e-4
+  - 1e+4
+  - 1e+4
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  - 1e-5
+  w_kin_lmom:
+  - 0.001
+  - 0.000
+  - 0.000
+  w_kin_lmomd:
+  - 0.000
+  - 1.420
+  - 0.000
+  w_lin_mom_tracking: 1.000
+  w_lmom:
+  - 0.100
+  - 0.100
+  - 10.000
+  w_lmom_final:
+  - 10.000
+  - 10.000
+  - 10.000
+  w_lmom_track:
+  - 0.100
+  - 0.100
+  - 10.000
+  w_lmomd:
+  - 0.100
+  - 0.100
+  - 0.100
+  w_time: 1.000
+  w_time_penalty: 0.000
+  w_trq_arm: 0.000
+  w_trq_leg: 0.000
+solver_variables:
+  BnB_absolute_suboptimality_gap: 1e-3
+  BnB_integer_tolerance: 1e-4
+  BnB_max_iterations: 1000
+  BnB_relative_suboptimality_gap: 1e-6
+  BnB_verbose: false
+  absolute_suboptimality_gap: 1e-7
+  absolute_suboptimality_gap_inaccurate: 5e-5
+  cg_full_precision: 1e-9
+  cg_reduced_precision: 1e-1
+  cg_residual_bound: 1e-18
+  cg_step_rate: 2.000
+  conicsolver_max_iters: 300
+  conicsolver_warm_iters: 300
+  consensus_penalty: 1e-3
+  converged_interval: 20
+  dyn_reg_thresh: 1e-13
+  dynamic_regularization: 2e-7
+  equil_iterations: 3
+  equil_lower_bound: 0.001
+  equil_upper_bound: 1.0e3
+  err_reduction_factor: 6.000
+  feasibility_tolerance: 1e-7
+  feasibility_tolerance_inaccurate: 1e-4
+  ipsolver_max_iters: 100
+  ipsolver_warm_iters: 100
+  lin_sys_accuracy: 1e-14
+  max_centering_step: 1.000
+  max_indeterminate_tolerance: 1e-9
+  max_iters: 100
+  max_residual_tolerance: 1e-3
+  max_step_length: 0.999
+  min_centering_step: 1e-4
+  min_step_length: 1e-6
+  num_iter_ref_lin_solve: 9
+  num_itrefs_trustregion: 2
+  optinfo_interval: 100
+  over_relaxation: 1.500
+  relative_suboptimality_gap: 1e-6
+  relative_suboptimality_gap_inaccurate: 5e-5
+  safeguard: 500.000
+  scaling_factor: 1.000
+  soft_constraint_weight_full: 1.0e4
+  soft_constraint_weight_reduced: 1.0e4
+  static_regularization: 7e-8
+  step_length_scaling: 0.990
+  trust_region_threshold: 0.150
+  verbose: false
+  warm_start: false
+solverlqr_dynamics:
+  bpass_initial_mult_regularization_incr: 1.000
+  bpass_initial_regularization: 0.100
+  bpass_max_regularization: 1e10
+  bpass_min_regularization: 1e-6
+  bpass_mult_regularization_incr: 1.200
+  bpass_regularization_type: 2
+  control_dimension: 12
+  control_gradient_tolerance: 1e-6
+  cost_change_tolerance: 1e-9
+  decimal_digits: 4
+  divergence_limit_check: 1e6
+  has_control_limits: false
+  initial_state:
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  - 0.000
+  linesearch_coeff: 1.100
+  linesearch_num_coeffs: 10
+  lqr_max_iters: 1
+  min_expected_cost_improvement: 0.200
+  problem_name: DynamicMomentumOptimization
+  state_dimension: 9
+  store_data: false
+  time_horizon: 1.500
+  time_step: 0.020
+  user_parameters:
+    amom_final_tracking:
+    - 10.000
+    - 10.000
+    - 0.000
+    amom_tracking:
+    - 10.000
+    - 10.000
+    - 0.000
+    com_final_tracking:
+    - 1.000
+    - 0.000
+    - 1.000
+    com_tracking:
+    - 1.000
+    - 0.000
+    - 1.000
+    control_cost:
+    - 0.001
+    - 0.001
+    - 0.001
+    lmom_final_tracking:
+    - 1.000
+    - 0.000
+    - 1.000
+    lmom_tracking:
+    - 1.000
+    - 0.000
+    - 1.000
+  verbosity: 0
+terrain_description:
+  regions:
+  - - - 1.000
+      - 1.000
+      - 0.000
+    - - -1.000
+      - 1.000
+      - 0.000
+    - - -1.000
+      - -1.000
+      - 0.000
+    - - 1.000
+      - -1.000
+      - 0.000
+time_horizon: 1.500
+time_step: 0.020

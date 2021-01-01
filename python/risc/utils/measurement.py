@@ -167,7 +167,8 @@ class MeasurementModelSwingJoints(object):
         # if recalc:
         #     self.calc(data, mdata, x, u)
         self.calc(data, mdata, x, u)
-        mdata.dx[:,:] = np.eye(self.ndx)
+        mdata.dx[:,:] = data.Fx.copy() 
+        mdata.du[:,:] =  data.Fu.copy()
 
     def parse_model(self):
         # look at base joint if planar or spatial 
@@ -294,9 +295,9 @@ class MeasurementModelContactNoise(object):
             pass
             # self.calc(data, mdata, x, u)
         self.calc(data, mdata, x, u)
-        mdata.dx[:,:] = np.eye(self.ndx)
-        # mdata.dx[:, :] = data.Fx.copy()
-        # mdata.du[:, :] = data.Fu.copy()
+        # mdata.dx[:,:] = np.eye(self.ndx)
+        mdata.dx[:, :] = data.Fx.copy()
+        mdata.du[:, :] = data.Fu.copy()
 
     def processNoise(self):
         """ return a sample noise vector """
