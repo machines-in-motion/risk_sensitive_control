@@ -418,9 +418,9 @@ class MeasurementModelContactConsistent(object):
             pass
             # self.calc(data, mdata, x, u)
         self.calc(data, mdata, x, u)
-        mdata.dx[:,:] = np.eye(self.ndx)
-        # mdata.dx[:, :] = data.Fx.copy()
-        # mdata.du[:, :] = data.Fu.copy()
+        # mdata.dx[:,:] = np.eye(self.ndx)
+        mdata.dx[:, :] = data.Fx.copy()
+        mdata.du[:, :] = data.Fu.copy()
 
     def processNoise(self):
         """ return a sample noise vector """
