@@ -5,9 +5,7 @@ from pinocchio.utils import fromListToVectorOfString, rotate
 import os, sys, time 
 from os.path import dirname, join
 import yaml
-from consim import build_euler_simulator
-import eigenpy
-
+from simple_simulator import build_euler_simulator
 
 
 
@@ -27,7 +25,7 @@ class SimpleSimulator(object):
         self.nq = self.model.nq
         self.nv = self.model.nv
         self.n = self.nq + self.nv
-        self.m = self.model.njoints - 2 
+        self.m = self.model.njoints - 2 # don't count universe and base in pinocchio models
         self.contacts = []
         # simulation parameters 
         self.dt = None 

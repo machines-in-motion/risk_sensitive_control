@@ -1,0 +1,37 @@
+#########################
+# Simulation Parameters #
+#########################
+sim:
+
+  ###################
+  # time parameters #
+  ###################
+
+  dt: 1.e-3
+  n_steps: 10
+
+
+  #################
+  # contact model #
+  #################
+  contact_model: 'linear_penalty'
+  stiffness: 1.e+5 
+  damping: 2.4e+2
+  # tangent_stiffness: 1.e+5
+  # tangent_damping: 2.4e+2
+  # contact_model: 'nonlinear_penalty_damped'
+  # normal_stiffness: 250. 
+  # normal_damping: 120. 
+  # tangent_stiffness: 250. 
+  # tangent_damping: 120. 
+  static_friction_coefficient: .7
+  # add cotact points for simple_biped
+  # contact_points: ['LF', 'RF']
+  # for ankled biped 
+  # contact_points: ['LF_heel', 'LF_toe', 'RF_heel', 'RF_toe']
+  # for solo12 
+  contact_points: ['FL_ANKLE', 'FR_ANKLE', 'HL_ANKLE', 'HR_ANKLE']
+  unilateral_contact: True 
+  # blmc biped 
+  # contact_points: ['FL_FOOT', 'FR_FOOT']
+
