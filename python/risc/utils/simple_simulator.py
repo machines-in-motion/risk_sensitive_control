@@ -96,11 +96,11 @@ class SimpleSimulator(object):
         return np.hstack([self.simulator.get_q(), self.simulator.get_v()])
     
     def read_contact_force(self):
-        f = np.zeros([3, self.nc])
-        # f = []
+        # f = np.zeros([3, self.nc])
+        f = []
         for i,c in enumerate(self.contacts):
-            f[:,i] = c.f.copy() # += [c.f.copy()]
-        return f # np.resize(np.vstack(f), 3*self.nc)  
+            f[:,i] += [c.f.copy()]
+        return  np.resize(np.vstack(f), 3*self.nc)  
 
     def parse_contact_model(self):
         for name in self.contact_names:

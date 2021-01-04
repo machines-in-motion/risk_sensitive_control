@@ -50,8 +50,7 @@ disturbance_size = [1.5, 1.5, .03]
 disturbance_size2 = [.1, .1, .025]
 
 
-# contact_names = ['FL_ANKLE', 'FR_ANKLE', 'HL_ANKLE', 'HR_ANKLE']
-contact_names = ['FL_FOOT', 'FR_FOOT', 'HL_FOOT', 'HR_FOOT']
+contact_names = ['FL_ANKLE', 'FR_ANKLE', 'HL_ANKLE', 'HR_ANKLE']
 solo_path = os.path.abspath('../../../../../../robot_properties_solo') 
 plan_path = os.path.abspath("../planner/jump_ref/new")
 noise_models = ["Uniform", "SwingJoints","Unconstrained", "Contact"]
@@ -158,7 +157,7 @@ if __name__ == "__main__":
     # x0[2] -= solo12_gaits.ankle_offset
 
     solo12_gaits.WHICH_MEASUREMENT = "Contact"
-    loco3dModels, measurementModels = solo12_gaits.createProblemKinoDynJump(x0, timeStep, 
+    loco3dModels, runningMeasurements = solo12_gaits.createProblemKinoDynJump(x0, timeStep, 
                     contact_status_ref, qref, dqref, contact_positions_ref, vref, com_ref)
     kinoOptProblem = crocoddyl.ShootingProblem(x0, loco3dModels, loco3dModels[-1])
 
@@ -181,10 +180,10 @@ if __name__ == "__main__":
         print("Solving "+ risk_names_dff[i])
         solo12_gaits = locomotion_tools.QuadrupedGaits(solo12, *contact_names)
         solo12_gaits.WHICH_MEASUREMENT = noise_models[i]
-        loco3dModels, measurementModels = solo12_gaits.createProblemKinoDynJump(x0, timeStep, 
+        loco3dModels, runningMeasurements = solo12_gaits.createProblemKinoDynJump(x0, timeStep, 
                     contact_status_ref, qref, dqref, contact_positions_ref, vref, com_ref)
         kinoOptProblem = crocoddyl.ShootingProblem(x0, loco3dModels, loco3dModels[-1])
-        measurementModels = measurement.MeasurementModels(kinoOptProblem.runningModels, measurementModels)
+        measurementModels = measurement.MeasurementModels(kinoOptProblem.runningModels, runningMeasurements)
         risk_solvers_soln += [risk_sensitive_solver.RiskSensitiveSolver(kinoOptProblem, measurementModels, 
                                                                         sensitivity)]
         risk_solvers_soln[-1].callback = [crocoddyl.CallbackLogger(),
