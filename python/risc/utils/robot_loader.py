@@ -4,7 +4,7 @@ import numpy as np
 import pinocchio as pin
 from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.utils import fromListToVectorOfString
-
+from os.path import dirname, join
 
 
 

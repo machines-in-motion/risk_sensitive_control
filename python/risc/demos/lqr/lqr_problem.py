@@ -78,9 +78,6 @@ if __name__ == "__main__":
     measurementModels = measurement.MeasurementModels(runningModels, runningMeasurements)
     print("measurement models initialized successfully ")
 
-
-    # riskSolver = measurement_risc.MeasurementRiskSensitiveSolver(riskProblem, measurementModels, SENSITIVITY)
-
     riskSolver = risk_sensitive_solver.RiskSensitiveSolver(riskProblem, measurementModels, SENSITIVITY)
     riskSolver.callback = [crocoddyl.CallbackLogger(), crocoddyl.CallbackVerbose()]
     print("risk solver initialized successfully ")

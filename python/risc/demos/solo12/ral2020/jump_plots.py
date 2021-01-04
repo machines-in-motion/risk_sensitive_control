@@ -1,23 +1,21 @@
 import numpy as np 
 import os, sys, time 
-src_path = os.path.abspath('../../../src/py_locomotion/')
+src_path = os.path.abspath('../../../')
 sys.path.append(src_path)
 import matplotlib.pyplot as plt 
 import pinocchio as pin 
 import crocoddyl 
 
-import robots, locomotion_tools, plotting_tools, measurement 
-import risk_sensitive_solver
-
+from utils import robot_loader, locomotion_tools, plotting_tools, measurement, visualize, simple_simulator 
+from solvers import risk_sensitive_solver
 import seaborn as sns 
 
-import visualize 
-from example_robot_data.robots_loader import getModelPath
+
 EXPERIMENT_NAME="Solo12_jump_ddp_vs_risk"
 SAVE_FIGURES =False   
 SMALL_SIZE = 8
 MEDIUM_SIZE = 30
-BIGGER_SIZE = 22
+BIGGER_SIZE = 35
 
 plt.rc('font', size=MEDIUM_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=MEDIUM_SIZE)     # fontsize of the axes title
@@ -31,15 +29,17 @@ color_map = "BrBG"
 
 # some parameters for the gait, solver and simulator 
 timeStep=1.e-2 
-sensitivity = .1
+sensitivity = 10.
 DISPLAY_DDP_SOLN = False     
 DISPLAY_RISK_SOLN = False    
 WHICH_SIMULATION = "ConSim"
 NO_FEEDBACK = False 
+
+DISPLAY_SIM = True 
 WHICH_SOLVER = "RISK"             
 WHICH_SOLVER = "FDDP" 
-PLOT_PLANNER_REF = False   
-DISPLAY_PLANNER_REF = False  
+PLOT_PLANNER_REF = False    
+DISPLAY_PLANNER_REF = True  
 ADD_DISTURBANCE = False      
 disturbance_position = [0., 0., .015+.015]
 disturbance_position2 = [.5, -.1225, .0125+.015]
@@ -52,7 +52,7 @@ disturbance_size2 = [.1, .1, .025]
 
 # contact_names = ['FL_ANKLE', 'FR_ANKLE', 'HL_ANKLE', 'HR_ANKLE']
 contact_names = ['FL_FOOT', 'FR_FOOT', 'HL_FOOT', 'HR_FOOT']
-solo_path = os.path.abspath('../../../../robot_properties_solo')
+solo_path = os.path.abspath('../../../../../../robot_properties_solo') 
 plan_path = os.path.abspath("../planner/jump_ref/new")
 noise_models = ["Uniform", "SwingJoints","Unconstrained", "Contact"]
 noise_models = ["Contact"]
@@ -65,35 +65,18 @@ class FullStateMeasurement(object):
         for t, mModel in enumerate(self.measurementModels):
             self.runningDatas += [mModel.createData()]
 
-modelPath = '/opt/openrobots/share/example-robot-data/robots/solo_description/robots'
-urdf = modelPath+'/solo12.urdf'
-srdf = modelPath+'/srdf/solo.srdf'
+# modelPath = '../../../../../robot_properties_solo'
+# urdf = modelPath+'/urdf/solo12.urdf'
+# srdf = modelPath+'/srdf/solo.srdf'
+
+
+
+
+DISPLAY = [DISPLAY_DDP_SOLN, DISPLAY_RISK_SOLN, DISPLAY_PLANNER_REF, DISPLAY_SIM]
 
 if __name__ == "__main__":
-
-    solo12 = robots.load_solo12_pinocchio(solo_path)
+    solo12 = robot_loader.load_solo12_pinocchio(solo_path)
     solo12_plots = plotting_tools.RobotPlottingTools(solo12, contact_names)
-
-    # for cname in contact_names:
-    #     print(cname, " at ", solo12.data.oMf[solo12.model.getFrameId(cname)].translation)
-    
-
-    # if DISPLAY_RISK_SOLN or DISPLAY_DDP_SOLN or WHICH_SIMULATION=="ConSim" or DISPLAY_PLANNER_REF:
-    #     try:
-    #         solo12.initViewer(loadModel=True)
-    #         cameraTF = [3., 3.68, 0.84, 0.2, 0.62, 0.72, 0.22]
-    #         window_id = solo12.viz.viewer.gui.getWindowID("python-pinocchio")
-    #         solo12.viewer.gui.setCameraTransform(window_id, cameraTF)
-    #         backgroundColor = [1., 1., 1., 1.]
-    #         floorColor = [0.7, 0.7, 0.7, 1.]
-    #         #   
-            
-    #         solo12.viz.viewer.gui.setBackgroundColor1(window_id, backgroundColor)
-    #         solo12.viz.viewer.gui.setBackgroundColor2(window_id, backgroundColor)
-    #     except:
-    #         raise BaseException('Gepetto viewer not initialized ! ')
-
-
 
     qref, dqref, fref, vref, contact_positions_ref, \
     contact_status_ref, com_ref = locomotion_tools.parse_kindynamic_plan_slo12(plan_path, solo_path)
@@ -143,15 +126,33 @@ if __name__ == "__main__":
         plt.title('base Orientation ')
 
 
-    # if DISPLAY_PLANNER_REF:
-    #     print("Displaying KinoDyn Reference Trajectory")
-    #     for qi in qref:
-    #         solo12.display(qi)
-    #         time.sleep(1.e-2)
+    if any(DISPLAY):
+        try:
+            solo12.initViewer(loadModel=True)
+            cameraTF = [3., 3.68, 0.84, 0.2, 0.62, 0.72, 0.22]
+            window_id = solo12.viz.viewer.gui.getWindowID("python-pinocchio")
+            solo12.viewer.gui.setCameraTransform(window_id, cameraTF)
+            backgroundColor = [1., 1., 1., 1.]
+            floorColor = [0.7, 0.7, 0.7, 1.]
+            #   
+            
+            solo12.viz.viewer.gui.setBackgroundColor1(window_id, backgroundColor)
+            solo12.viz.viewer.gui.setBackgroundColor2(window_id, backgroundColor)
+        except:
+            raise BaseException('Gepetto viewer not initialized ! ')
+
+
+
+
+    if DISPLAY_PLANNER_REF:
+        print("Displaying KinoDyn Reference Trajectory")
+        for qi in qref:
+            solo12.display(qi)
+            time.sleep(1.e-2)
 
 
     solo12_gaits = locomotion_tools.QuadrupedGaits(solo12, *contact_names)
-
+    print("solo gaits work")
 
     x0 = np.hstack([qref[0], dqref[0]])
     # x0[2] -= solo12_gaits.ankle_offset
@@ -183,8 +184,8 @@ if __name__ == "__main__":
         loco3dModels, measurementModels = solo12_gaits.createProblemKinoDynJump(x0, timeStep, 
                     contact_status_ref, qref, dqref, contact_positions_ref, vref, com_ref)
         kinoOptProblem = crocoddyl.ShootingProblem(x0, loco3dModels, loco3dModels[-1])
-        measurementModel = FullStateMeasurement(kinoOptProblem.runningModels, measurementModels)
-        risk_solvers_soln += [risk_sensitive_solver.RiskSensitiveSolver(kinoOptProblem, measurementModel, 
+        measurementModels = measurement.MeasurementModels(kinoOptProblem.runningModels, measurementModels)
+        risk_solvers_soln += [risk_sensitive_solver.RiskSensitiveSolver(kinoOptProblem, measurementModels, 
                                                                         sensitivity)]
         risk_solvers_soln[-1].callback = [crocoddyl.CallbackLogger(),
                                 crocoddyl.CallbackVerbose()]
@@ -195,41 +196,31 @@ if __name__ == "__main__":
         _, _, converged = risk_solvers_soln[-1].solve(100, xs_risk, us_risk, True)
         print("Solving "+ risk_names_dff[i]+ " Completed")
 
-    # measurementModel = FullStateMeasurement(kinoOptProblem.runningModels, measurementModels)
-    # risk_solver = risk_sensitive_solver.RiskSensitiveSolver(kinoOptProblem, measurementModel, sensitivity)
-    # risk_solver.callback = [crocoddyl.CallbackLogger(),
-    #                         crocoddyl.CallbackVerbose()]
-    # # 
-    # xs_risk = [xi.copy() for xi in fddp.xs]
-    # us_risk = [ui.copy() for ui in fddp.us]
-    # # 
-    # xs_risk, us_risk, converged = risk_solver.solve(100, xs_risk, us_risk, True)
-
     
 
-    # if DISPLAY_DDP_SOLN: 
-    #     for xi in fddp.xs:
-    #         solo12.display(xi[:solo12.nq])
-    #         time.sleep(1.e-2) 
+    # # if DISPLAY_DDP_SOLN: 
+    # #     for xi in fddp.xs:
+    # #         solo12.display(xi[:solo12.nq])
+    # #         time.sleep(1.e-2) 
 
-        solo12_plots.solver_contact_forces(fddp)
-        solo12_plots.leg_controls(fddp)
-        solo12_plots.contact_positions(fddp.xs)
+    #     solo12_plots.solver_contact_forces(fddp)
+    #     solo12_plots.leg_controls(fddp)
+    #     solo12_plots.contact_positions(fddp.xs)
 
 
-    # np.save('jump_reference_states_ddp.npy', fddp.xs)
-    # np.save('jump_reference_controls_ddp.npy', fddp.us)
-    # np.save('jump_feedback_ddp.npy', fddp.K)
-    # np.save('jump_reference_states_risk.npy', risk_solver.xs)
-    # np.save('jump_reference_controls_risk.npy', risk_solver.us)
-    # np.save('jump_feedback_risk.npy', risk_solver.K)
-    # 
+    # # np.save('jump_reference_states_ddp.npy', fddp.xs)
+    # # np.save('jump_reference_controls_ddp.npy', fddp.us)
+    # # np.save('jump_feedback_ddp.npy', fddp.K)
+    # # np.save('jump_reference_states_risk.npy', risk_solver.xs)
+    # # np.save('jump_reference_controls_risk.npy', risk_solver.us)
+    # # np.save('jump_feedback_risk.npy', risk_solver.K)
+    # # 
     """ ConSim """
     solvers = [fddp]+ risk_solvers_soln
     solver_names = ['DDP'] + ["Risk_"+ n for n in noise_models]
     if WHICH_SIMULATION == "ConSim":
-        contact_config_path = '../../../models/config/linear_contact.yaml'
-        sim = robots.PinocchioSimulator(solo12, contact_config_path)
+        contact_config_path = 'linear_contact.yaml'
+        sim = simple_simulator.SimpleSimulator(solo12, contact_config_path)
         # simulator runs at 1 ms while the trajectory is optimized at 10 ms 
         
         states = []
@@ -262,66 +253,66 @@ if __name__ == "__main__":
     #             # display in gepetto 
     #             # solo12.display(xt[-1][:solo12.nq,None])
     #             # time.sleep(1.e-2)
-            # print("Displaying Solo12 Simulation for %s"%solver_names[i])
-            # for t, xi in enumerate(xt):
-            #     solo12.display(xi[:solo12.nq])
-            #     time.sleep(1.e-2) 
+            print("Displaying Solo12 Simulation for %s"%solver_names[i])
+            for t, xi in enumerate(xt):
+                solo12.display(xi[:solo12.nq])
+                time.sleep(1.e-2) 
 
             states += [xt]
             forces += [ft]
             controls += [ut]
             errors += [dx]
 
-    base_tracking_fig = solo12_plots.compare_base_tracking(states, fddp.xs, names=solver_names)
-    contact_height_tracking_fig = solo12_plots.compare_frame_height(contact_names, states, fddp.xs, names=solver_names ,setlim=False)
-    contact_force_fig = solo12_plots.compare_simulation_froces(fddp, forces, dt=1.e-2, names=solver_names)
+    # base_tracking_fig = solo12_plots.compare_base_tracking(states, fddp.xs, names=solver_names)
+    # contact_height_tracking_fig = solo12_plots.compare_frame_height(contact_names, states, fddp.xs, names=solver_names ,setlim=False)
+    # contact_force_fig = solo12_plots.compare_simulation_froces(fddp, forces, dt=1.e-2, names=solver_names)
 
-    if SAVE_FIGURES:
-        base_tracking_fig[0].savefig(EXPERIMENT_NAME+"_base_tracking.pdf")
-        contact_height_tracking_fig[0].savefig(EXPERIMENT_NAME+"_contact_height_tracking.pdf")
-        contact_directions = ["_fx.pdf", "_fy.pdf", "_fz.pdf"]
-        for i,d in enumerate(contact_directions):
-            contact_force_fig[i].savefig(EXPERIMENT_NAME+ d)
+    # if SAVE_FIGURES:
+    #     base_tracking_fig[0].savefig(EXPERIMENT_NAME+"_base_tracking.pdf")
+    #     contact_height_tracking_fig[0].savefig(EXPERIMENT_NAME+"_contact_height_tracking.pdf")
+    #     contact_directions = ["_fx.pdf", "_fy.pdf", "_fz.pdf"]
+    #     for i,d in enumerate(contact_directions):
+    #         contact_force_fig[i].savefig(EXPERIMENT_NAME+ d)
 
 
 
-    FEEDBACKFIGSIZE=(10,10)
+    # FEEDBACKFIGSIZE=(10,10)
 
-    N = len(errors[0])
-    t_array = 1.e-2 * np.arange(N)
-    colors = ['b', 'g-', 'r--', 'm-.', 'k:']
-    # colors = ['b', 'r', 'g', 'm-.', 'k:']
+    # N = len(errors[0])
+    # t_array = 1.e-2 * np.arange(N)
+    # colors = ['b', 'g-', 'r--', 'm-.', 'k:']
+    # # colors = ['b', 'r', 'g', 'm-.', 'k:']
 
-    dq = np.zeros([N,len(solver_names)])
-    dv = np.zeros([N,len(solver_names)])
-    kp = np.zeros([N,len(solver_names)])
-    kd = np.zeros([N,len(solver_names)])
-    ##
-    basePosErr  = np.zeros([N,len(solver_names)])
-    baseVelErr  = np.zeros([N,len(solver_names)])
-    jointPosErr = np.zeros([N,len(solver_names)])
-    jointVelErr = np.zeros([N,len(solver_names)])
-    ## 
-    baseKp  = np.zeros([N,len(solver_names)])
-    baseKd  = np.zeros([N,len(solver_names)])
-    jointKp = np.zeros([N,len(solver_names)])
-    jointKd = np.zeros([N,len(solver_names)])
-    for i, ithSolverName in enumerate(solver_names):
-        for t in range(N):
-            dq[t,i] = np.linalg.norm(errors[i][t][:solo12.nv])
-            dv[t,i] = np.linalg.norm(errors[i][t][solo12.nv:])
-            kp[t,i] = np.linalg.norm(solvers[i].K[t][:,:solo12.nv])
-            kd[t,i] = np.linalg.norm(solvers[i].K[t][:,solo12.nv:])
-            #
-            basePosErr[t,i]  = np.linalg.norm(errors[i][t][:6])
-            baseVelErr[t,i]  = np.linalg.norm(errors[i][t][solo12.nv:solo12.nv+6])
-            jointPosErr[t,i] = np.linalg.norm(errors[i][t][6:solo12.nv])
-            jointVelErr[t,i] = np.linalg.norm(errors[i][t][solo12.nv+6:])
-            # 
-            baseKp[t,i]  = np.linalg.norm(solvers[i].K[t][:,:6])
-            baseKd[t,i]  = np.linalg.norm(solvers[i].K[t][:,solo12.nv:solo12.nv+6])
-            jointKp[t,i] = np.linalg.norm(solvers[i].K[t][:,6:solo12.nv])
-            jointKd[t,i] = np.linalg.norm(solvers[i].K[t][:,solo12.nv+6:])
+    # dq = np.zeros([N,len(solver_names)])
+    # dv = np.zeros([N,len(solver_names)])
+    # kp = np.zeros([N,len(solver_names)])
+    # kd = np.zeros([N,len(solver_names)])
+    # ##
+    # basePosErr  = np.zeros([N,len(solver_names)])
+    # baseVelErr  = np.zeros([N,len(solver_names)])
+    # jointPosErr = np.zeros([N,len(solver_names)])
+    # jointVelErr = np.zeros([N,len(solver_names)])
+    # ## 
+    # baseKp  = np.zeros([N,len(solver_names)])
+    # baseKd  = np.zeros([N,len(solver_names)])
+    # jointKp = np.zeros([N,len(solver_names)])
+    # jointKd = np.zeros([N,len(solver_names)])
+    # for i, ithSolverName in enumerate(solver_names):
+    #     for t in range(N):
+    #         dq[t,i] = np.linalg.norm(errors[i][t][:solo12.nv])
+    #         dv[t,i] = np.linalg.norm(errors[i][t][solo12.nv:])
+    #         kp[t,i] = np.linalg.norm(solvers[i].K[t][:,:solo12.nv])
+    #         kd[t,i] = np.linalg.norm(solvers[i].K[t][:,solo12.nv:])
+    #         #
+    #         basePosErr[t,i]  = np.linalg.norm(errors[i][t][:6])
+    #         baseVelErr[t,i]  = np.linalg.norm(errors[i][t][solo12.nv:solo12.nv+6])
+    #         jointPosErr[t,i] = np.linalg.norm(errors[i][t][6:solo12.nv])
+    #         jointVelErr[t,i] = np.linalg.norm(errors[i][t][solo12.nv+6:])
+    #         # 
+    #         baseKp[t,i]  = np.linalg.norm(solvers[i].K[t][:,:6])
+    #         baseKd[t,i]  = np.linalg.norm(solvers[i].K[t][:,solo12.nv:solo12.nv+6])
+    #         jointKp[t,i] = np.linalg.norm(solvers[i].K[t][:,6:solo12.nv])
+    #         jointKd[t,i] = np.linalg.norm(solvers[i].K[t][:,solo12.nv+6:])
 
      
     # plt.figure('configuration error for ddp', figsize=FEEDBACKFIGSIZE)
@@ -554,64 +545,64 @@ if __name__ == "__main__":
     #     if SAVE_FIGURES:
     #         plt.savefig(EXPERIMENT_NAME + "_"+ ithSolverName+"_KD_Contact_base.pdf")
 
-    # plt.show()
+    plt.show()
 
-    """ video recordings """
-    urdf_path = urdf 
-    model_path = modelPath +'/../../../..'
+    # """ video recordings """
+    # urdf_path = urdf 
+    # model_path = modelPath +'/../../../..'
 
-    CameraTransform =[-1.5264389514923096,
-                    -1.6716818809509277,
-                    0.2570425570011139,
-                    0.6916553378105164,
-                    -0.23205697536468506,
-                    -0.21380648016929626,
-                    0.6496531367301941]
+    # CameraTransform =[-1.5264389514923096,
+    #                 -1.6716818809509277,
+    #                 0.2570425570011139,
+    #                 0.6916553378105164,
+    #                 -0.23205697536468506,
+    #                 -0.21380648016929626,
+    #                 0.6496531367301941]
 
-    visualizer = visualize.Visualizer(showFloor=True, cameraTF=CameraTransform)
+    # visualizer = visualize.Visualizer(showFloor=True, cameraTF=CameraTransform)
 
-    ddp_options = {'contact_names': contact_names, 
-                    'robot_color': [0.,1.,0.,.5],
-                    'force_color': [0., 1., 0., .5],
-                    'force_radius': .002, 
-                    'force_length': .028,
-                    'cone_color': [0., 1., 0., .3],
-                    'cone_length': .02,
-                    'friction_coeff': .7, 
-                    'wireframe_mode': "FILL"
-                    }
+    # ddp_options = {'contact_names': contact_names, 
+    #                 'robot_color': [0.,1.,0.,.5],
+    #                 'force_color': [0., 1., 0., .5],
+    #                 'force_radius': .002, 
+    #                 'force_length': .028,
+    #                 'cone_color': [0., 1., 0., .3],
+    #                 'cone_length': .02,
+    #                 'friction_coeff': .7, 
+    #                 'wireframe_mode': "FILL"
+    #                 }
 
-    risk_options = {'contact_names':contact_names, 
-                    'robot_color': [.7,.7, .7,1.],
-                    'force_color': [0., 0., 1., 1.],
-                    'force_radius': .002, 
-                    'force_length': .028,
-                    'cone_color': [0., 0., 1., .4],
-                    'cone_length': .02,
-                    'friction_coeff': .7,
-                    'wireframe_mode': "FILL"
-                    }
+    # risk_options = {'contact_names':contact_names, 
+    #                 'robot_color': [.7,.7, .7,1.],
+    #                 'force_color': [0., 0., 1., 1.],
+    #                 'force_radius': .002, 
+    #                 'force_length': .028,
+    #                 'cone_color': [0., 0., 1., .4],
+    #                 'cone_length': .02,
+    #                 'friction_coeff': .7,
+    #                 'wireframe_mode': "FILL"
+    #                 }
 
 
-    ddp_viz = visualize.ConsimVisual("DDP", urdf_path, 
-                        [model_path], pin.JointModelFreeFlyer(), 
-                        visualizer, ddp_options)
+    # ddp_viz = visualize.ConsimVisual("DDP", urdf_path, 
+    #                     [model_path], pin.JointModelFreeFlyer(), 
+    #                     visualizer, ddp_options)
 
-    ddp_viz.loadViewerModel()
+    # ddp_viz.loadViewerModel()
 
-    risk_viz = visualize.ConsimVisual("Risk", urdf_path, 
-                        [model_path],pin.JointModelFreeFlyer(), 
-                        visualizer, risk_options)
+    # risk_viz = visualize.ConsimVisual("Risk", urdf_path, 
+    #                     [model_path],pin.JointModelFreeFlyer(), 
+    #                     visualizer, risk_options)
 
-    risk_viz.loadViewerModel()
+    # risk_viz.loadViewerModel()
 
-    saving_path = os.getcwd() + "/jump-no-block/"+EXPERIMENT_NAME
-    for t in range(N):
-        if ADD_DISTURBANCE and t == 125 :
-            print("Adding Box")
-            ddp_viz.add_box("box01", np.array(disturbance_position), np.array(disturbance_size))
-        ddp_viz.display(states[0][t][:solo12.nq],forces[0][t])
-        risk_viz.display(states[1][t][:solo12.nq],forces[1][t])
-        time.sleep(1.e-2)
-        visualizer.captureFrame(saving_path+"_{:03d}".format(t)+".png")
+    # saving_path = os.getcwd() + "/jump-no-block/"+EXPERIMENT_NAME
+    # for t in range(N):
+    #     if ADD_DISTURBANCE and t == 125 :
+    #         print("Adding Box")
+    #         ddp_viz.add_box("box01", np.array(disturbance_position), np.array(disturbance_size))
+    #     ddp_viz.display(states[0][t][:solo12.nq],forces[0][t])
+    #     risk_viz.display(states[1][t][:solo12.nq],forces[1][t])
+    #     time.sleep(1.e-2)
+    #     visualizer.captureFrame(saving_path+"_{:03d}".format(t)+".png")
 

@@ -30,7 +30,7 @@ def force_from_bullet(contact_ids, actve_ids, forces):
  
 def parse_kindynamic_plan_slo12(path, solo_path):
     contact_names = ['FL_FOOT', 'FR_FOOT', 'HL_FOOT', 'HR_FOOT']
-    solo12 = robots.load_solo12_pinocchio(solo_path)
+    solo12 = robot_loader.load_solo12_pinocchio(solo_path)
     q = np.loadtxt(path+"/quadruped_generalized_positions.dat", dtype=float)[:,1:] 
     dq = np.loadtxt(path+"/quadruped_generalized_velocities.dat", dtype=float)[:,1:] 
     f = np.loadtxt(path+"/quadruped_forces.dat", dtype=float)[:,1:] 
@@ -85,7 +85,7 @@ class QuadrupedGaits(object):
         self.rmodel.defaultState = np.concatenate([q0, np.zeros(self.rmodel.nv)])
         self.firstStep = True
         # Defining the friction coefficient and normal
-        self.mu = 0.7
+        self.mu = 0.6
         self.nsurf = np.array([0., 0., 1.])
         self.baumgarte = np.array([0., 50.]) # pd gains to stabalize the contact 
         self.walking_sequence = []
