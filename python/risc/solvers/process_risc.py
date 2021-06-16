@@ -296,13 +296,13 @@ class ProcessRiskSensitiveSolver(SolverAbstract):
         self.k = [np.zeros([m.nu]) for m in self.problem.runningModels]
         # Auxilary Parameters for the Augmented state space model 
         # defined in equations 78 and 112 
-        self.At = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.problem.runningModels]
-        self.Bt = [np.zeros([2*m.state.ndx, 2*m.nu]) for m in self.problem.runningModels] 
-        self.Ct = [np.zeros([2*m.state.ndx, y.ny + y.np])for m, y in zip(self.problem.runningModels, self.measurement.measurementModels)]
+        self.At = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.problem.runningModels]
+        self.Bt = [np.zeros([m.state.ndx, m.nu]) for m in self.problem.runningModels] 
+        self.Ct = [np.zeros([m.state.ndx, y.np])for m, y in zip(self.problem.runningModels, self.measurement.measurementModels)]
         # 
-        self.Qt = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
-        self.qt = [np.zeros(2*m.state.ndx) for m in self.models()]
-        self.Pt = [np.zeros([2*m.state.ndx, m.nu]) for m in self.models()]
+        self.Qt = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.models()]
+        self.qt = [np.zeros(m.state.ndx) for m in self.models()]
+        # self.Pt = [np.zeros([2*m.state.ndx, m.nu]) for m in self.models()]
         # control optimization 
         self.Xit = [np.zeros([y.np + y.nm, y.np + y.nm]) for y in self.measurement.measurementModels] 
         self.Wt = [np.zeros([y.np + y.nm, y.np + y.nm]) for y in self.measurement.measurementModels] 
