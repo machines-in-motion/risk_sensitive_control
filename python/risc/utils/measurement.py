@@ -54,6 +54,8 @@ class MeasurementModelFullState(object):
         self.mn = mn  
         self.measurement = np.zeros(self.ny)
         self.MeasurementDataType = MeasurementDataFullState
+        self.np = self.sn.shape[0]
+        self.nm = self.mn.shape[0]
         
 
     def createData(self):

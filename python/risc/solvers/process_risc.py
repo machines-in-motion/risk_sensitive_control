@@ -190,8 +190,8 @@ class ProcessRiskSensitiveSolver(SolverAbstract):
         xtry, utry = self.xs_try, self.us_try
         ctry = 0
         for t, (m, d) in enumerate(zip(self.problem.runningModels, self.problem.runningDatas)):
-            self.us_try[t] = us[t] - stepLength*self.k[t] - \
-                self.K[t].dot(m.state.diff(xs[t], self.xs_try[t]))
+            self.us_try[t] = us[t] + stepLength*self.k[t] + \
+                self.K[t].dot(m.state.diff(self.xs_try[t], xs[t]))
             
             with np.warnings.catch_warnings():
                 np.warnings.simplefilter(warning)
@@ -209,81 +209,60 @@ class ProcessRiskSensitiveSolver(SolverAbstract):
         self.cost_try = ctry
         return self.xs_try, self.us_try, ctry
 
-    def estimatorGain(self, t, data, mdata):
-        try:
-            invZ = np.linalg.inv(mdata.dx.dot(
-                self.cov[t]).dot(mdata.dx.T) + mdata.dd)
-        except:
-            raise BaseException('Kalman filter error')
-        self.filterGains[t][:, :] = data.Fx.dot(
-                    self.cov[t]).dot(mdata.dx.T).dot(invZ)
-        akf = data.Fx - self.filterGains[t].dot(mdata.dx)
-        self.cov[t+1][:, :] =  akf.dot(self.cov[t]).dot(akf.T) + mdata.cc \
-            + self.filterGains[t].dot(mdata.dd).dot(self.filterGains[t].T)
+
+    def computeScalarTerms(self):
+        pass 
 
     def backwardPass(self):
         # initialize recursions 
-        self.st[-1][:self.problem.terminalModel.state.ndx] = self.problem.terminalData.Lx
-        self.St[-1][:self.problem.terminalModel.state.ndx, :self.problem.terminalModel.state.ndx] = self.problem.terminalData.Lxx
+        self.st[-1][:] = self.problem.terminalData.Lx
+        self.St[-1][:,:] = self.problem.terminalData.Lxx
+        # self.Ft[-1] = self.problem.terminalData.cost 
         #TODO: check the recursions once more
         # iterate backwards 
         for t, (model, data, ymodel, ydata) in rev_enumerate(zip(self.problem.runningModels,
                                                          self.problem.runningDatas,
                                                          self.measurement.runningModels,  
                                                          self.measurement.runningDatas)):
-
-            self.At[t][:model.state.ndx,:model.state.ndx] = data.Fx 
-            self.At[t][model.state.ndx:,:model.state.ndx] = self.filterGains[t].dot(ydata.dx)
-            self.At[t][model.state.ndx:,model.state.ndx:] = data.Fx - self.filterGains[t].dot(ydata.dx)
-            # 
-            self.Bt[t][:model.state.ndx, :] = data.Fu 
-            self.Bt[t][model.state.ndx:, :] = data.Fu 
-            #TODO: check the dimensions of the noise models below  
-            self.Ct[t][:model.state.ndx, :ymodel.np] = ymodel.sd 
-            self.Ct[t][model.state.ndx:, ymodel.np:] = ymodel.md 
-            # 
-            self.Qt[t][:model.state.ndx,:model.state.ndx] = data.Lxx 
-            self.qt[t][:model.state.ndx] = data.Lx 
-            self.Pt[t][:model.state.ndx, :] = data.Lxu 
-            # first compute Wt from the document eq.94 
-            self.Xit[t][:ymodel.np, :ymodel.np] = ymodel.sn 
-            self.Xit[t][ymodel.np:, ymodel.np:] =  ymodel.mn 
-            invWt = self.Xit[t] - self.sigma * self.Ct[t].T.dot(self.St[t+1]).dot(self.Ct[t])
+        
+            gaps = np.zeros(model.state.ndx)
+            invWt = ymodel.sn  - self.sigma *ymodel.sd.T.dot(self.St[t+1]).dot(ymodel.sd)
             try: 
-                self.Wt[t] = np.linalg.inv(invWt) 
+                self.Wt[t][:,:] = np.linalg.inv(invWt) 
             except:
                 raise BaseException("Wt inversion failed at t = %s"%t)
 
             # more auxilary terms for the control optimization 
-            cwcT = self.Ct[t].dot(self.Wt[t]).dot(self.Ct[t].T) 
+            cwcT = ymodel.sd.dot(self.Wt[t]).dot(ymodel.sd.T) 
             ScwcT = self.St[t+1].dot(cwcT)
+            sigScwcT = self.sigma *ScwcT
             sigScwcTS = self.sigma * ScwcT.dot(self.St[t+1]) 
 
             # control optimization recursions 
-            self.Gt[t] = data.Luu + self.Bt[t].T.dot(self.St[t+1] + sigScwcTS).dot(self.Bt[t]) 
-            self.gt[t] = data.Lu + self.Bt[t].T.dot(self.st[t+1]+ self.sigma * ScwcT.dot(self.st[t+1]))
-            self.Ht[t] = self.Bt[t].T.dot(self.St[t+1] + sigScwcTS).dot(self.At[t]) + self.Pt[t].T
-            
+            self.Pt[t][:,:] = data.Luu + data.Fu.T.dot(self.St[t+1]+ sigScwcTS).dot(data.Fu)
+            self.Tt[t][:,:] = data.Fu.T.dot(self.S[t+1]+ sigScwcTS).dot(data.Fx) 
+            self.pt[t][:] = data.Lu + data.Fu.T.dot(np.eye(model.state.ndx) + sigScwcT).dot(self.st[t+1]) 
+            self.pt[t][:] += data.Fu.T.dot(np.eye(model.state.ndx) + sigScwcT).dot(self.S[t+1]).dot(gaps)
+
             # solving for the control 
             try:
-                Lb = scl.cho_factor(self.Gt[t], lower=True)
-                self.k[t][:] = - scl.cho_solve(Lb, self.gt[t])
-                self.K[t][:, :] = - scl.cho_solve(Lb, self.Ht[t][:,:model.ndx]+self.Ht[t][:,model.ndx:])
+                Lb = scl.cho_factor(self.Pt[t], lower=True)
+                self.k[t][:] = - scl.cho_solve(Lb, self.pt[t])
+                self.K[t][:, :] = - scl.cho_solve(Lb, self.Tt[t][:,:])
             except:
                 raise BaseException('choelskey error')
 
-            self.Ht_bar[t][:,model.state.ndx:] = self.K[t][:, :]
-            # value function approximation 
-            P_ASB = self.Pt[t] + self.At[t].T.dot(self.St[t+1]).dot(self.Bt[t])
-            HR_HBSB = self.Ht_bar[t].T.dot(data.Luu) +  self.Ht[t].T.dot(self.Bt[t].T).dot(self.St[t+1]).dot(self.Bt[t])
-            BH = self.Bt[t].dot(self.Ht_bar[t])
-            #
-            self.St[t] = self.Qt[t] + (HR_HBSB + 2*P_ASB).dot(self.Ht_bar[t]) + self.At[t].T.dot(self.St[t+1]).dot(self.At[t])
-            self.St[t] += self.At[t].T.dot(sigScwcTS).dot(self.At[t]) + 2* self.At[t].T.dot(sigScwcTS).dot(BH) + BH.T.dot(sigScwcTS).dot(BH) 
-            #
-            self.st[t] = self.qt[t] + (HR_HBSB + P_ASB).dot(self.k[t]) + (self.At[t].T + BH.T).dot(self.st[t+1])
-            self.st[t] += (self.At[t] + BH).T.dot(sigScwcTS).dot(self.st[t+1]) + (2*self.At[t] + BH).T.dot(sigScwcTS).dot(self.k[t])
+            # Aux terms 
+            A_BK = data.Fx + data.Fu.dot(self.K[t])
+            SBk_Sf = self.S[t+1].dot(data.Fu.dot(self.k[t]) + gaps)
 
+
+            self.S[t][:,:] = data.Lxx + self.K[t].T.dot(data.Luu).dot(self.K[t])
+            self.S[t][:,:] += A_BK.T.dot(sigScwcTS).dot(A_BK)
+
+            self.s[t][:] = data.Lx + self.K[t].T.dot(data.Luu.dot(self.k[t])+data.Lu)
+            self.s[t][:] += A_BK.T.dot(SBk_Sf + self.s[t+1])
+            self.s[t][:] += A_BK.T.dot(sigScwcT).dot(SBk_Sf+ self.s[t+1])
 
     def allocateData(self):
         """  Allocate memory for all variables needed, control, state, value function and estimator.
@@ -294,28 +273,12 @@ class ProcessRiskSensitiveSolver(SolverAbstract):
         # feedforward and feedback 
         self.K = [np.zeros([m.nu, m.state.ndx]) for m in self.problem.runningModels]
         self.k = [np.zeros([m.nu]) for m in self.problem.runningModels]
-        # Auxilary Parameters for the Augmented state space model 
-        # defined in equations 78 and 112 
-        self.At = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.problem.runningModels]
-        self.Bt = [np.zeros([m.state.ndx, m.nu]) for m in self.problem.runningModels] 
-        self.Ct = [np.zeros([m.state.ndx, y.np])for m, y in zip(self.problem.runningModels, self.measurement.measurementModels)]
-        # 
-        self.Qt = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.models()]
-        self.qt = [np.zeros(m.state.ndx) for m in self.models()]
-        # self.Pt = [np.zeros([2*m.state.ndx, m.nu]) for m in self.models()]
         # control optimization 
-        self.Xit = [np.zeros([y.np + y.nm, y.np + y.nm]) for y in self.measurement.measurementModels] 
-        self.Wt = [np.zeros([y.np + y.nm, y.np + y.nm]) for y in self.measurement.measurementModels] 
-        self.Gt = [np.zeros([m.nu, m.nu]) for m in self.problem.runningModels]
-        self.gt = [np.zeros(m.nu) for m in self.problem.runningModels]
-        self.Ht = [np.zeros([m.nu, 2*m.state.ndx]) for m in self.problem.runningModels]
-        self.Ht_bar = [np.zeros([m.nu, 2*m.state.ndx]) for m in self.problem.runningModels]
+        self.Wt = [np.zeros([y.np, y.np]) for y in self.measurement.measurementModels] 
+        self.Pt = [np.zeros([m.nu, m.nu]) for m in self.problem.runningModels]
+        self.pt = [np.zeros(m.nu) for m in self.problem.runningModels]
+        self.Tt = [np.zeros([m.nu, m.state.ndx]) for m in self.problem.runningModels]
         # Value function approximations 
-        self.St = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
-        self.st = [np.zeros(2*m.state.ndx) for m in self.models()]
-        self.Ft = [np.nan for m in self.models()]
-        # filter parameters 
-        self.cov = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.models()]
-        self.cov[0] = self.measurement.measurementModels[0].sn.copy()
-        self.filterGains = [np.zeros([m.state.ndx, y.ny])for m, y
-                            in zip(self.problem.runningModels, self.measurement.measurementModels)]
+        self.St = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.models()]
+        self.st = [np.zeros(m.state.ndx) for m in self.models()]
+        self.Ft = [np.nan for _ in self.models()]
