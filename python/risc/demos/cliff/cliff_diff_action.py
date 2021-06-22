@@ -12,7 +12,7 @@ class DifferentialActionModelCliff(crocoddyl.DifferentialActionModelAbstract):
         nu = 2 
         state =  crocoddyl.StateVector(nx)
         crocoddyl.DifferentialActionModelAbstract.__init__(self, state, nu, ndx)
-        self.g = np.array([0. -9.81])
+        self.g = np.array([0. , -9.81])
         self.isTerminal = isTerminal
         self.mass = 1. 
 
@@ -21,7 +21,7 @@ class DifferentialActionModelCliff(crocoddyl.DifferentialActionModelAbstract):
         return cost
 
     def _terminal_cost(self, x, u):
-        cost = 10000*((x[0]-10.)**2) + 10000*(x[1]**2) + 10000*(x[2]**2) + 10000*(x[3]**2)  
+        cost = 1000*((x[0]-10.)**2) + 1000*(x[1]**2) + 1000*(x[2]**2) + 100*(x[3]**2)  
         return cost 
      
     def calc(self, data, x, u=None):
@@ -48,14 +48,14 @@ class DifferentialActionModelCliff(crocoddyl.DifferentialActionModelAbstract):
         Luu = np.zeros([2,2])
         Lxu = np.zeros([4,2])
         if self.isTerminal:
-            Lx[0] = 20000.*(x[0]-10)
-            Lx[1] = 20000.*x[1]
-            Lx[2] = 20000.*x[2]
-            Lx[3] = 20000.*x[3]     
-            Lxx[0,0] = 20000. 
-            Lxx[1,1] = 20000. 
-            Lxx[2,2] = 20000. 
-            Lxx[3,3] = 20000. 
+            Lx[0] = 2000.*(x[0]-10)
+            Lx[1] = 2000.*x[1]
+            Lx[2] = 2000.*x[2]
+            Lx[3] = 2000.*x[3]     
+            Lxx[0,0] = 2000. 
+            Lxx[1,1] = 2000. 
+            Lxx[2,2] = 2000. 
+            Lxx[3,3] = 2000. 
         else:
             Lx[1] = - (10.**10) /((x[1]+10.)**11)
             Lu[0] = 2.*u[0] 
@@ -91,7 +91,7 @@ if __name__ =="__main__":
     problem = crocoddyl.ShootingProblem(x0, [cliff_running]*T, cliff_terminal)
     print(" Constructing shooting problem completed ".center(LINE_WIDTH, '-'))
     
-    ddp = crocoddyl.SolverFDDP(problem)
+    ddp = crocoddyl.SolverDDP(problem)
     print(" Constructing DDP solver completed ".center(LINE_WIDTH, '-'))
     ddp.setCallbacks([
     crocoddyl.CallbackLogger(),

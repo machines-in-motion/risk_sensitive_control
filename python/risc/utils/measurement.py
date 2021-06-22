@@ -25,10 +25,10 @@ import pinocchio as pin
 class MeasurementModels(object):
     def __init__(self, running_models, measurement_models):
         self.rmodels = running_models
-        self.measurementModels = measurement_models
+        self.runningModels = measurement_models
         self.runningDatas = []
 
-        for t, mModel in enumerate(self.measurementModels):
+        for t, mModel in enumerate(self.runningModels):
             self.runningDatas += [mModel.createData()]
 
 #_____________________________________________________________________________________________________________________#

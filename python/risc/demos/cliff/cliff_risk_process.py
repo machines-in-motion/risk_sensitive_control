@@ -14,13 +14,13 @@ import sys
 src_path = abspath('../../')
 sys.path.append(src_path)
 
-from solvers import process_risc 
+from solvers import risc 
 from utils import measurement 
 
 
 MAXITER = 1000
 CALLBACKS = True
-SENSITIVITY  = 1. 
+SENSITIVITY  = .1
 dt = 0.01 
 T = 300 
 x0 = np.zeros(4) 
@@ -45,15 +45,16 @@ def riskCreateProblem(model):
     cliff_running = crocoddyl.IntegratedActionModelEuler(cliff_diff_running, dt) 
     cliff_terminal = crocoddyl.IntegratedActionModelEuler(cliff_diff_terminal, dt) 
     xs = [x0]*(T+1)
-    us = [np.zeros(2)]*T
+    us = [np.array([0., 9.81])]*T
     runningModels = [cliff_running]*T
     terminalModel = cliff_terminal
     runningMeasurements = []
 
     for t, process_model in enumerate(runningModels):
-        state_diffusion = np.eye(process_model.state.ndx)
-        state_noise = 1.e-5 * np.eye(process_model.state.ndx)
-        measurement_diffusion =  np.eye(process_model.state.ndx)
+        state_diffusion = dt * np.eye(process_model.state.ndx)
+        state_diffusion[1,1] = 2*dt 
+        state_noise =  np.eye(process_model.state.ndx)
+        measurement_diffusion = np.eye(process_model.state.ndx)
         measurement_noise = 1.e-4 * np.eye(process_model.state.ndx) 
         measurementMod = measurement.MeasurementModelFullState(process_model,state_diffusion, 
                     state_noise, measurement_diffusion, measurement_noise)
@@ -68,36 +69,48 @@ if __name__ == "__main__":
     # create the problem 
 
     ddp_xs, ddp_us, ddp_problem = ddpCreateProblem(crocoddyl.ActionModelLQR)
-    ddp = crocoddyl.SolverFDDP(ddp_problem)
+    ddp = crocoddyl.SolverDDP(ddp_problem)
     if CALLBACKS:
         ddp.setCallbacks([crocoddyl.CallbackLogger(), crocoddyl.CallbackVerbose()])
     
     ddp.solve(ddp_xs, ddp_us, MAXITER)
 
     risk_xs, risk_us, runningModels, terminalModel, runningMeasurements = riskCreateProblem(crocoddyl.ActionModelLQR)
-    risk_xs = []
-    risk_us = []
-    for xi in ddp.xs:
-        risk_xs += [xi]
-    for ui in ddp.us:
-        risk_us += [ui]
 
     riskProblem = crocoddyl.ShootingProblem(risk_xs[0], runningModels, terminalModel)
     measurementModels = measurement.MeasurementModels(runningModels, runningMeasurements)
     print("measurement models initialized successfully ")
 
-    riskSolver = process_risc.ProcessRiskSensitiveSolver(riskProblem, measurementModels, SENSITIVITY)
+    riskSolver = risc.RiskSensitiveSolver(riskProblem, measurementModels, SENSITIVITY)
     riskSolver.callback = [crocoddyl.CallbackLogger(), crocoddyl.CallbackVerbose()]
     print("risk solver initialized successfully ")
 
 
-    riskSolver.solve(MAXITER, risk_xs, risk_us, True)
+    riskSolver.solve(MAXITER, risk_xs, risk_us, False)
+
+
+    time_array = dt*np.arange(np.array(ddp.xs).shape[0])
 
     plt.figure("State_Trajectory")
     plt.plot(np.array(ddp.xs)[:,0], np.array(ddp.xs)[:,1])
     plt.plot(np.array(riskSolver.xs)[:,0], np.array(riskSolver.xs)[:,1])
 
+    plt.figure("X controls")
+    plt.plot(time_array[:-1], np.array(ddp.us)[:,0])
+    plt.plot(time_array[:-1], np.array(riskSolver.us)[:,0])
+    
+    plt.figure("Y controls")
+    plt.plot(time_array[:-1], np.array(ddp.us)[:,1])
+    plt.plot(time_array[:-1], np.array(riskSolver.us)[:,1])
 
+    plt.figure("X feedback")
+    plt.plot(time_array[:-1], -np.array(ddp.K)[:,0,0])
+    plt.plot(time_array[:-1], np.array(riskSolver.K)[:,0,0])
+
+    plt.figure("Y feedback")
+    plt.plot(time_array[:-1], -np.array(ddp.K)[:,1,1])
+    plt.plot(time_array[:-1], np.array(riskSolver.K)[:,1,1])
+    
 
     # plt.figure("Control_Solution")
     # for i in range(NU):
