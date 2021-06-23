@@ -20,7 +20,7 @@ from utils import measurement
 
 MAXITER = 1000
 CALLBACKS = True
-SENSITIVITY  = .1
+SENSITIVITY  = 5. 
 dt = 0.01 
 T = 300 
 x0 = np.zeros(4) 
@@ -52,7 +52,8 @@ def riskCreateProblem(model):
 
     for t, process_model in enumerate(runningModels):
         state_diffusion = dt * np.eye(process_model.state.ndx)
-        state_diffusion[1,1] = 2*dt 
+        # state_diffusion[1,1] = 2*dt 
+        state_diffusion[3,3] = 5*dt 
         state_noise =  np.eye(process_model.state.ndx)
         measurement_diffusion = np.eye(process_model.state.ndx)
         measurement_noise = 1.e-4 * np.eye(process_model.state.ndx) 
@@ -103,13 +104,13 @@ if __name__ == "__main__":
     plt.plot(time_array[:-1], np.array(ddp.us)[:,1])
     plt.plot(time_array[:-1], np.array(riskSolver.us)[:,1])
 
-    plt.figure("X feedback")
-    plt.plot(time_array[:-1], -np.array(ddp.K)[:,0,0])
-    plt.plot(time_array[:-1], np.array(riskSolver.K)[:,0,0])
-
-    plt.figure("Y feedback")
+    plt.figure("Kp Y")
     plt.plot(time_array[:-1], -np.array(ddp.K)[:,1,1])
     plt.plot(time_array[:-1], np.array(riskSolver.K)[:,1,1])
+
+    plt.figure("Kd Y")
+    plt.plot(time_array[:-1], -np.array(ddp.K)[:,1,3])
+    plt.plot(time_array[:-1], np.array(riskSolver.K)[:,1,3])
     
 
     # plt.figure("Control_Solution")

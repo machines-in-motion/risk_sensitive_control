@@ -35,13 +35,16 @@ class RiskSensitiveSolver(SolverAbstract):
         self.th_stop = 1.e-9 
         self.measurement = measurementModel 
         self.sigma = sensitivity
-        self.allocateData()
-        print("Data allocated succesfully")
         self.n_little_improvement = 0 
         self.withMeasurement = False 
         self.gap_tolerance = 1.e-7
         self.withGaps = False 
 
+        if self.withMeasurement:
+            self.allocateDataMeasurement() 
+        else:
+            self.allocateData()
+        print("Data allocated succesfully")
 
     def models(self):
         mod = [m for m in self.problem.runningModels]
@@ -100,7 +103,10 @@ class RiskSensitiveSolver(SolverAbstract):
         while True:
             try:
                 if VERBOSE: print("Going into Backward Pass".center(LINE_WIDTH,"-"))
-                self.backwardPass()
+                if self.withMeasurement:
+                    self.backwardPassMeasurement()
+                else:
+                    self.backwardPass()
                  
             except BaseException:
                 print('computing direction at iteration %s failed, increasing regularization ' % i)
@@ -287,13 +293,12 @@ class RiskSensitiveSolver(SolverAbstract):
         self.st[-1][:] = self.problem.terminalData.Lx
         self.St[-1][:,:] = self.problem.terminalData.Lxx
         # self.Ft[-1] = self.problem.terminalData.cost 
-        #TODO: check the recursions once more
         # iterate backwards 
         for t, (model, data, ymodel, ydata) in rev_enumerate(zip(self.problem.runningModels,
                                                          self.problem.runningDatas,
                                                          self.measurement.runningModels,  
                                                          self.measurement.runningDatas)):
-        
+            
             invWt = np.linalg.inv(ymodel.sn)  - self.sigma *ymodel.sd.T.dot(self.St[t+1]).dot(ymodel.sd)
             if VERBOSE: print(" invW constructed ".center(LINE_WIDTH,"-"))
             try: 
@@ -371,3 +376,126 @@ class RiskSensitiveSolver(SolverAbstract):
 
         self.fs = [np.zeros(self.problem.runningModels[0].state.ndx)
                      ] + [np.zeros(m.state.ndx) for m in self.problem.runningModels]
+
+
+
+    def backwardPassMeasurement(self):
+        # initialize recursions 
+        m = self.problem.terminalModel
+        self.st[-1][:m.state.ndx] = self.problem.terminalData.Lx
+        self.St[-1][:m.state.ndx,:m.state.ndx] = self.problem.terminalData.Lxx
+
+        for t, (model, data, ymodel, ydata) in rev_enumerate(zip(self.problem.runningModels,
+                                                         self.problem.runningDatas,
+                                                         self.measurement.runningModels,  
+                                                         self.measurement.runningDatas)):
+
+            # matrix that augments state and measurement covariances   
+            self.noise[t][:ymodel.np, :ymodel.np] = ymodel.sn.copy()
+            self.noise[t][ymodel.np:, ymodel.np:] = ymodel.mn.copy() 
+            self.A[t][:model.state.ndx, :model.state.ndx] = data.Fx 
+            self.A[t][model.state.ndx:, :model.state.ndx] = self.G[t].dot(ydata.dx) 
+            self.A[t][model.state.ndx:, model.state.ndx:] =data.Fx -  self.G[t].dot(ydata.dx)  
+            self.B[t][:model.nu,:] = data.Fu
+            self.B[t][model.nu:,:] = data.Fu 
+            self.C[t][:ymodel.np,:ymodel.np] = ymodel.sd 
+            self.C[t][ymodel.np:,ymodel.np:] = ymodel.md 
+            self.Q[t][:model.state.ndx,:model.state.ndx] = data.Lxx   
+            self.q[t][:model.state.ndx] = data.Lx  
+            self.O[t][:,:model.state.ndx] = data.Lxu.T  
+
+            # compute this Wt term 
+            invWt = np.linalg.inv(self.noise[t])  - self.sigma *self.C[t].T.dot(self.St[t+1]).dot(self.C[t])
+            if VERBOSE: print(" invW constructed ".center(LINE_WIDTH,"-"))
+            try: 
+                self.Wt[t][:,:] = np.linalg.inv(invWt) 
+                if VERBOSE: print(" W computed ".center(LINE_WIDTH,"-"))
+            except:
+                raise BaseException("Wt inversion failed at t = %s"%t)
+            
+
+            # more auxiliary terms for the control optimization 
+            cwcT = self.C[t].dot(self.Wt[t]).dot(self.C[t].T) 
+            ScwcT = self.St[t+1].dot(cwcT)
+            sigScwcT = self.sigma *ScwcT
+            sigScwcTS = sigScwcT.dot(self.St[t+1]) 
+            S_sigScwcTS = self.St[t+1] + sigScwcTS
+            I_sigScwcT = np.eye(2*model.state.ndx) + sigScwcT
+            s_Sf = self.st[t+1] + self.St[t+1].dot(self.fs[t+1])
+            if VERBOSE: print(" Auxiliary terms constructed ".center(LINE_WIDTH,"-"))
+
+            # control optimization recursions 
+            self.Pt[t][:,:] = data.Luu + self.B[t].T.dot(S_sigScwcTS).dot(self.B[t]) 
+            if VERBOSE: print(" P[t] constructed ".center(LINE_WIDTH,"-"))
+            self.Tt[t][:,:] = self.O[t] + self.B[t].T.dot(S_sigScwcTS).dot(self.A[t])
+            if VERBOSE: print(" T[t] constructed ".center(LINE_WIDTH,"-"))
+            self.pt[t][:] = data.Lu + self.B[t].T.dot(I_sigScwcT).dot(s_Sf)
+            if VERBOSE: print(" p[t] constructed ".center(LINE_WIDTH,"-"))
+            if VERBOSE: print(" Controls Terms ".center(LINE_WIDTH,"-"))
+            # solving for the control 
+            try:
+                Lb = scl.cho_factor(self.Pt[t] + self.u_reg*np.eye(model.nu), lower=True)
+                # Lb = scl.cho_factor(self.Pt[t], lower=True)
+                self.k[t][:] = scl.cho_solve(Lb, -self.pt[t])
+                self.Kxxh[t][:, :] = scl.cho_solve(Lb, -self.Tt[t])
+            except:
+                pass 
+                # raise BaseException('choelskey error')
+            if VERBOSE: print(" Controls Optimized ".center(LINE_WIDTH,"-"))
+            # Aux terms 
+            self.Khat[t][:,model.state.ndx:] = self.Kxxh[t][:, :model.state.ndx] + self.Kxxh[t][:, model.state.ndx:]
+            self.K[t][:,:] = self.Kxxh[t][:, :model.state.ndx] + self.Kxxh[t][:, model.state.ndx:]
+            A_BK = self.A[t] + self.B[t].dot(self.Khat[t])
+            
+
+            if VERBOSE: print(" Controls auxiliary terms ".center(LINE_WIDTH,"-"))
+
+            self.St[t][:,:] = self.Q[t] + self.Khat[t].T.dot(data.Luu).dot(self.Khat[t])
+            self.St[t][:,:] += self.Khat[t].T.dot(self.O[t]) + self.O[t].T.dot(self.Khat[t])
+            self.St[t][:,:] +=  A_BK.T.dot(S_sigScwcTS).dot(A_BK)
+            self.St[t][:, :] += self.x_reg*np.eye(2*model.state.ndx)
+            if VERBOSE: print(" Value function hessian ".center(LINE_WIDTH,"-"))
+            self.St[t][:,:] = .5*(self.St[t]+ self.St[t].T)
+
+            self.st[t][:] =  data.q[t] + self.Khat[t].T.dot(data.Luu.dot(self.k[t])+data.Lu) + self.O[t].T.dot(self.k[t])
+            self.st[t][:] += A_BK.T.dot(I_sigScwcT).dot(self.st[t+1])
+            self.st[t][:] += A_BK.T.dot(S_sigScwcTS).dot(self.B[t].dot(self.k[t]) + self.fs[t+1]) 
+
+            if VERBOSE: print(" Value function gradient ".center(LINE_WIDTH,"-"))
+    
+    def allocateDataMeasurement(self):
+        self.xs_try = [self.problem.x0] + [np.nan] * self.problem.T
+        self.us_try = [np.nan] * self.problem.T 
+
+        self.Kxxh = [np.zeros([m.nu, 2*m.state.ndx]) for m in self.problem.runningModels]
+        self.Khat = [np.zeros([m.nu, 2*m.state.ndx]) for m in self.problem.runningModels]
+        self.K = [np.zeros([m.nu, m.state.ndx]) for m in self.problem.runningModels]
+        self.k = [np.zeros([m.nu]) for m in self.problem.runningModels]
+
+
+        self.Wt = [np.zeros([y.np + y.nm, y.np + y.nm]) for y in self.measurement.runningModels] 
+
+        self.Pt = [np.zeros([m.nu, m.nu]) for m in self.problem.runningModels]
+        self.pt = [np.zeros(m.nu) for m in self.problem.runningModels]
+        self.Tt = [np.zeros([m.nu, 2*m.state.ndx]) for m in self.problem.runningModels]
+        # Value function approximations 
+        self.St = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
+        self.st = [np.zeros(2*m.state.ndx) for m in self.models()]
+        self.Ft = [np.nan for _ in self.models()]
+
+        self.fs = [np.zeros(2*m.state.ndx) for m in self.models()] 
+
+        # The extended Dynamics & Cost  
+
+        self.A = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
+        self.B = [np.zeros([2*m.state.ndx, m.nu]) for m in self.models()]
+        self.C = [np.zeros([2*m.state.ndx, y.np + y.nm]) for m,y in zip(self.models(), self.measurement.runningModels)]
+        self.noise = [np.zeros([y.np + y.nm, y.np + y.np]) for _,y in zip(self.models(), self.measurement.runningModels)]
+        self.Q = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
+        self.q = [np.zeros(2*m.state.ndx) for m in self.models()]
+        self.O = [np.zeros([m.nu, 2*m.state.ndx]) for m in self.models()]
+        
+        # The Kalman Filter 
+        self.G = [np.zeros([m.state.ndx, y.ny]) for m,y in zip(self.models(), self.measurement.runningModels)] 
+        self.Covariance = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.models()] 
+
