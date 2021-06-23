@@ -64,13 +64,8 @@ class RiskSensitiveSolver(SolverAbstract):
                 self.computeGaps()
         
             if self.withMeasurement:
-                pass 
-                # for t, (d, measurementMod, mdata) in enumerate(zip(self.problem.runningDatas,
-                #                                 self.measurement.measurementModels, 
-                #                                 self.measurement.runningDatas)):
-                #     measurementMod.calcDiff(d, mdata, self.xs[t], self.us[t])
-                #     self.estimatorGain(t, d, mdata)
-                # if VERBOSE: print("measurement model cal and estimator gains are completed !!!!!")
+                self.filterPass() 
+                if VERBOSE: print("measurement model cal and estimator gains are completed !!!!!")
         except:
             raise BaseException("Calc Failed !")
     
@@ -88,6 +83,28 @@ class RiskSensitiveSolver(SolverAbstract):
                 could_be_feasible = False
                 break
         self.isFeasible = could_be_feasible 
+
+    def filterPass(self):
+        """ computes the extended kalman filter along the predetermined trajectory """
+        for t, (d, ymodel, ydata) in enumerate(zip(self.problem.runningDatas,
+                                                self.measurement.runningModels, 
+                                                self.measurement.runningDatas)):
+            ymodel.calcDiff(d, ydata, self.xs[t], self.us[t])
+            term = ydata.dx.dot(self.Covariance[t]).dot(ydata.dx)
+            term += ymodel.md.dot(self.ymodel.mn).dot(ymodel.nd)
+
+            term2 = d.Fx.dot(self.Covariance[t]).dot(ydata.dx.T)
+
+            Lb = scl.cho_factor(term.T , lower=True)
+            G_transpose = scl.cho_solve(Lb, term2)
+
+            self.G[t][:,:] = G_transpose.T 
+
+            A_GF = d.Fx - self.G[t].dot(ydata.dx)
+            self.Covariance[t+1][:,:] = A_GF.dot(self.Covariance[t]).dot(A_GF.T) 
+            self.Covariance[t+1][:,:] += ymodel.sd.dot(ymodel.sn).dot(ymodel.sd.T)
+            self.Covariance[t+1][:,:] += self.G[t].dot(ymodel.md).dot(ymodel.mn).dot(ymodel.md.T).dot(self.G[t].T)
+
 
 
     def computeDirection(self, recalc=True):
@@ -455,9 +472,9 @@ class RiskSensitiveSolver(SolverAbstract):
             self.St[t][:,:] +=  A_BK.T.dot(S_sigScwcTS).dot(A_BK)
             self.St[t][:, :] += self.x_reg*np.eye(2*model.state.ndx)
             if VERBOSE: print(" Value function hessian ".center(LINE_WIDTH,"-"))
-            self.St[t][:,:] = .5*(self.St[t]+ self.St[t].T)
+            self.St[t][:,:] = .5*(self.St[t]+ self.St[t].T) #symmetric by construction, just make sure here
 
-            self.st[t][:] =  data.q[t] + self.Khat[t].T.dot(data.Luu.dot(self.k[t])+data.Lu) + self.O[t].T.dot(self.k[t])
+            self.st[t][:] =  self.q[t] + self.Khat[t].T.dot(data.Luu.dot(self.k[t])+data.Lu) + self.O[t].T.dot(self.k[t])
             self.st[t][:] += A_BK.T.dot(I_sigScwcT).dot(self.st[t+1])
             self.st[t][:] += A_BK.T.dot(S_sigScwcTS).dot(self.B[t].dot(self.k[t]) + self.fs[t+1]) 
 
