@@ -5,7 +5,7 @@ from crocoddyl import SolverAbstract
 
 LINE_WIDTH = 100 
 
-VERBOSE = False  
+VERBOSE = True  
 def rev_enumerate(l):
     return reversed(list(enumerate(l)))
 
@@ -20,7 +20,7 @@ def raiseIfNan(A, error=None):
 
 
 class RiskSensitiveSolver(SolverAbstract):
-    def __init__(self, shootingProblem, measurementModel, sensitivity):
+    def __init__(self, shootingProblem, measurementModel, sensitivity, withMeasurement=False):
         SolverAbstract.__init__(self, shootingProblem)
 
         # Change it to true if you know that datas[t].xnext = xs[t+1]
@@ -36,7 +36,7 @@ class RiskSensitiveSolver(SolverAbstract):
         self.measurement = measurementModel 
         self.sigma = sensitivity
         self.n_little_improvement = 0 
-        self.withMeasurement = False 
+        self.withMeasurement = withMeasurement 
         self.gap_tolerance = 1.e-7
         self.withGaps = False 
 
@@ -100,7 +100,7 @@ class RiskSensitiveSolver(SolverAbstract):
                                                 self.measurement.runningDatas)):
             ymodel.calcDiff(d, ydata, self.xs[t], self.us[t])
             term = ydata.dx.dot(self.Covariance[t]).dot(ydata.dx)
-            term += ymodel.md.dot(self.ymodel.mn).dot(ymodel.nd)
+            term += ymodel.md.dot(ymodel.mn).dot(ymodel.md)
 
             term2 = d.Fx.dot(self.Covariance[t]).dot(ydata.dx.T)
 
@@ -135,7 +135,7 @@ class RiskSensitiveSolver(SolverAbstract):
                     self.backwardPass()
                  
             except BaseException:
-                print('computing direction at iteration %s failed, increasing regularization ' % i)
+                print('computing direction at iteration %s failed, increasing regularization ' % self.iter)
                 self.increaseRegularization()
                 if self.x_reg == self.regMax:
                     return False
@@ -515,13 +515,15 @@ class RiskSensitiveSolver(SolverAbstract):
 
         self.A = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
         self.B = [np.zeros([2*m.state.ndx, m.nu]) for m in self.models()]
-        self.C = [np.zeros([2*m.state.ndx, y.np + y.nm]) for m,y in zip(self.models(), self.measurement.runningModels)]
-        self.noise = [np.zeros([y.np + y.nm, y.np + y.np]) for _,y in zip(self.models(), self.measurement.runningModels)]
+        self.C = [np.zeros([2*m.state.ndx, y.np + y.nm]) for m,y in zip(self.problem.runningModels, self.measurement.runningModels)]
+        self.noise = [np.zeros([y.np + y.nm, y.np + y.np]) for _,y in zip(self.problem.runningModels, self.measurement.runningModels)]
         self.Q = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
         self.q = [np.zeros(2*m.state.ndx) for m in self.models()]
         self.O = [np.zeros([m.nu, 2*m.state.ndx]) for m in self.models()]
         
         # The Kalman Filter 
-        self.G = [np.zeros([m.state.ndx, y.ny]) for m,y in zip(self.models(), self.measurement.runningModels)] 
+        self.G = [np.zeros([m.state.ndx, y.ny]) for m,y in zip(self.problem.runningModels, self.measurement.runningModels)] 
         self.Covariance = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.models()] 
+        ymodel = self.measurement.runningModels[0] 
+        self.Covariance[0][:,:] = ymodel.sd.dot(ymodel.sn).dot(ymodel.sd.T)
 

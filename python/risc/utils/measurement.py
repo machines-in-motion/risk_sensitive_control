@@ -67,8 +67,8 @@ class MeasurementModelFullState(object):
     def calcDiff(self, data, mdata, x , u=None, recalc=True):
         if recalc:
             self.calc(data, x, u)
-        mdata.dx[:,:] = data.Fx.copy() 
-        mdata.du[:,:] =  data.Fu.copy()
+        mdata.dx[:,:] = np.eye(self.ndx) #data.Fx.copy() 
+        mdata.du[:,:] =  np.zeros([self.ndx, self.nu]) # data.Fu.copy()
 
     def processNoise(self):
         """ return a sample noise vector """
