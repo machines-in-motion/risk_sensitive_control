@@ -410,7 +410,7 @@ class RiskSensitiveSolver(SolverAbstract):
         m = self.problem.terminalModel
         self.st[-1][:m.state.ndx] = self.problem.terminalData.Lx
         self.St[-1][:m.state.ndx,:m.state.ndx] = self.problem.terminalData.Lxx
-
+        if VERBOSE: print(" terminal Value function constructed ".center(LINE_WIDTH,"-"))
         for t, (model, data, ymodel, ydata) in rev_enumerate(zip(self.problem.runningModels,
                                                          self.problem.runningDatas,
                                                          self.measurement.runningModels,  
@@ -422,13 +422,15 @@ class RiskSensitiveSolver(SolverAbstract):
             self.A[t][:model.state.ndx, :model.state.ndx] = data.Fx 
             self.A[t][model.state.ndx:, :model.state.ndx] = self.G[t].dot(ydata.dx) 
             self.A[t][model.state.ndx:, model.state.ndx:] =data.Fx -  self.G[t].dot(ydata.dx)  
-            self.B[t][:model.nu,:] = data.Fu
-            self.B[t][model.nu:,:] = data.Fu 
+            self.B[t][:model.state.ndx,:] = data.Fu
+            self.B[t][model.state.ndx:,:] = data.Fu 
             self.C[t][:ymodel.np,:ymodel.np] = ymodel.sd 
             self.C[t][ymodel.np:,ymodel.np:] = ymodel.md 
             self.Q[t][:model.state.ndx,:model.state.ndx] = data.Lxx   
             self.q[t][:model.state.ndx] = data.Lx  
             self.O[t][:,:model.state.ndx] = data.Lxu.T  
+
+            if VERBOSE: print(" extended system constructed ".center(LINE_WIDTH,"-"))
 
             # compute this Wt term 
             invWt = np.linalg.inv(self.noise[t])  - self.sigma *self.C[t].T.dot(self.St[t+1]).dot(self.C[t])
