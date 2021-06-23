@@ -73,10 +73,19 @@ class RiskSensitiveSolver(SolverAbstract):
         could_be_feasible = True 
         # Gap store the state defect from the guess to feasible (rollout) trajectory, i.e.
         #   gap = x_rollout [-] x_guess = DIFF(x_guess, x_rollout)
-        self.fs[0] = self.problem.runningModels[0].state.diff(self.xs[0], self.problem.initialState)
+        m = self.problem.runningModels[0]
+        if self.withMeasurement:
+            self.fs[0][:m.state.ndx] = m.state.diff(self.xs[0], self.problem.initialState)
+            self.fs[0][m.state.ndx:] = m.state.diff(self.xs[0], self.problem.initialState)
+        else:
+            self.fs[0] = m.state.diff(self.xs[0], self.problem.initialState)
             
         for i, (m, d, x) in enumerate(zip(self.problem.runningModels, self.problem.runningDatas, self.xs[1:])):
-            self.fs[i + 1] = m.state.diff(x, d.xnext)
+            if self.withMeasurement:
+                self.fs[i + 1][:m.state.ndx] = m.state.diff(x, d.xnext)
+                self.fs[i + 1][m.state.ndx:] = m.state.diff(x, d.xnext)
+            else:
+                self.fs[i + 1] = m.state.diff(x, d.xnext)
         
         for i in range(self.problem.T+1): 
             if np.linalg.norm(self.fs[i], ord=np.inf) >= self.gap_tolerance:
