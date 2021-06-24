@@ -5,7 +5,7 @@ from crocoddyl import SolverAbstract
 
 LINE_WIDTH = 100 
 
-VERBOSE = True  
+VERBOSE = False   
 def rev_enumerate(l):
     return reversed(list(enumerate(l)))
 
@@ -135,7 +135,7 @@ class RiskSensitiveSolver(SolverAbstract):
                     self.backwardPass()
                  
             except BaseException:
-                print('computing direction at iteration %s failed, increasing regularization ' % self.iter)
+                print('computing direction at iteration %s failed, increasing regularization ' % (self.iter+1))
                 self.increaseRegularization()
                 if self.x_reg == self.regMax:
                     return False
@@ -287,7 +287,10 @@ class RiskSensitiveSolver(SolverAbstract):
     def forwardPassNoGaps(self, stepLength, warning='error'):
         ctry = 0
         self.xs_try[0] = self.xs[0].copy()
-        self.fs[0] = np.zeros(self.problem.runningModels[0].state.ndx)
+        if self.withMeasurement:
+            self.fs[0] = np.zeros(2*self.problem.runningModels[0].state.ndx)
+        else:
+            self.fs[0] = np.zeros(self.problem.runningModels[0].state.ndx)
         for t, (m, d) in enumerate(zip(self.problem.runningModels, self.problem.runningDatas)):
             # update control 
             self.us_try[t] = self.us[t] + stepLength*self.k[t] + \
@@ -299,7 +302,10 @@ class RiskSensitiveSolver(SolverAbstract):
             # update state 
             self.xs_try[t + 1] = d.xnext.copy()  # not sure copy helpful here.
             ctry += d.cost
-            self.fs[t+1] = np.zeros(m.state.ndx)
+            if self.withMeasurement:
+                self.fs[t+1] = np.zeros(2*m.state.ndx)
+            else:
+                self.fs[t+1] = np.zeros(m.state.ndx)
             raiseIfNan([ctry, d.cost], BaseException('forward error'))
             raiseIfNan(self.xs_try[t + 1], BaseException('forward error'))
         with np.warnings.catch_warnings():
@@ -399,7 +405,6 @@ class RiskSensitiveSolver(SolverAbstract):
         self.St = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.models()]
         self.st = [np.zeros(m.state.ndx) for m in self.models()]
         self.Ft = [np.nan for _ in self.models()]
-
         self.fs = [np.zeros(self.problem.runningModels[0].state.ndx)
                      ] + [np.zeros(m.state.ndx) for m in self.problem.runningModels]
 
@@ -418,18 +423,22 @@ class RiskSensitiveSolver(SolverAbstract):
 
             # matrix that augments state and measurement covariances   
             self.noise[t][:ymodel.np, :ymodel.np] = ymodel.sn.copy()
-            self.noise[t][ymodel.np:, ymodel.np:] = ymodel.mn.copy() 
+            self.noise[t][ymodel.np:, ymodel.np:] = ymodel.mn.copy()
+            if VERBOSE: print("noise constructed") 
             self.A[t][:model.state.ndx, :model.state.ndx] = data.Fx 
             self.A[t][model.state.ndx:, :model.state.ndx] = self.G[t].dot(ydata.dx) 
             self.A[t][model.state.ndx:, model.state.ndx:] =data.Fx -  self.G[t].dot(ydata.dx)  
+            if VERBOSE: print("A[t] constructed")
             self.B[t][:model.state.ndx,:] = data.Fu
             self.B[t][model.state.ndx:,:] = data.Fu 
+            if VERBOSE: print("B[t] constructed")
             self.C[t][:ymodel.np,:ymodel.np] = ymodel.sd 
             self.C[t][ymodel.np:,ymodel.np:] = ymodel.md 
+            if VERBOSE: print("C[t] constructed")
             self.Q[t][:model.state.ndx,:model.state.ndx] = data.Lxx   
             self.q[t][:model.state.ndx] = data.Lx  
             self.O[t][:,:model.state.ndx] = data.Lxu.T  
-
+            if VERBOSE: print("cost constructed")
             if VERBOSE: print(" extended system constructed ".center(LINE_WIDTH,"-"))
 
             # compute this Wt term 
@@ -446,7 +455,7 @@ class RiskSensitiveSolver(SolverAbstract):
             cwcT = self.C[t].dot(self.Wt[t]).dot(self.C[t].T) 
             ScwcT = self.St[t+1].dot(cwcT)
             sigScwcT = self.sigma *ScwcT
-            sigScwcTS = sigScwcT.dot(self.St[t+1]) 
+            sigScwcTS = sigScwcT.dot(self.St[t+1])
             S_sigScwcTS = self.St[t+1] + sigScwcTS
             I_sigScwcT = np.eye(2*model.state.ndx) + sigScwcT
             s_Sf = self.st[t+1] + self.St[t+1].dot(self.fs[t+1])
@@ -454,11 +463,8 @@ class RiskSensitiveSolver(SolverAbstract):
 
             # control optimization recursions 
             self.Pt[t][:,:] = data.Luu + self.B[t].T.dot(S_sigScwcTS).dot(self.B[t]) 
-            if VERBOSE: print(" P[t] constructed ".center(LINE_WIDTH,"-"))
             self.Tt[t][:,:] = self.O[t] + self.B[t].T.dot(S_sigScwcTS).dot(self.A[t])
-            if VERBOSE: print(" T[t] constructed ".center(LINE_WIDTH,"-"))
             self.pt[t][:] = data.Lu + self.B[t].T.dot(I_sigScwcT).dot(s_Sf)
-            if VERBOSE: print(" p[t] constructed ".center(LINE_WIDTH,"-"))
             if VERBOSE: print(" Controls Terms ".center(LINE_WIDTH,"-"))
             # solving for the control 
             try:
@@ -467,28 +473,24 @@ class RiskSensitiveSolver(SolverAbstract):
                 self.k[t][:] = scl.cho_solve(Lb, -self.pt[t])
                 self.Kxxh[t][:, :] = scl.cho_solve(Lb, -self.Tt[t])
             except:
-                pass 
-                # raise BaseException('choelskey error')
+                print("computing controls at node %s failed!"%t)
+
             if VERBOSE: print(" Controls Optimized ".center(LINE_WIDTH,"-"))
             # Aux terms 
             self.Khat[t][:,model.state.ndx:] = self.Kxxh[t][:, :model.state.ndx] + self.Kxxh[t][:, model.state.ndx:]
             self.K[t][:,:] = self.Kxxh[t][:, :model.state.ndx] + self.Kxxh[t][:, model.state.ndx:]
             A_BK = self.A[t] + self.B[t].dot(self.Khat[t])
-            
-
-            if VERBOSE: print(" Controls auxiliary terms ".center(LINE_WIDTH,"-"))
-
+            # value function hessian  
             self.St[t][:,:] = self.Q[t] + self.Khat[t].T.dot(data.Luu).dot(self.Khat[t])
             self.St[t][:,:] += self.Khat[t].T.dot(self.O[t]) + self.O[t].T.dot(self.Khat[t])
             self.St[t][:,:] +=  A_BK.T.dot(S_sigScwcTS).dot(A_BK)
             self.St[t][:, :] += self.x_reg*np.eye(2*model.state.ndx)
             if VERBOSE: print(" Value function hessian ".center(LINE_WIDTH,"-"))
             self.St[t][:,:] = .5*(self.St[t]+ self.St[t].T) #symmetric by construction, just make sure here
-
+            # value fcn gradient 
             self.st[t][:] =  self.q[t] + self.Khat[t].T.dot(data.Luu.dot(self.k[t])+data.Lu) + self.O[t].T.dot(self.k[t])
             self.st[t][:] += A_BK.T.dot(I_sigScwcT).dot(self.st[t+1])
             self.st[t][:] += A_BK.T.dot(S_sigScwcTS).dot(self.B[t].dot(self.k[t]) + self.fs[t+1]) 
-
             if VERBOSE: print(" Value function gradient ".center(LINE_WIDTH,"-"))
     
     def allocateDataMeasurement(self):
@@ -500,7 +502,6 @@ class RiskSensitiveSolver(SolverAbstract):
         self.K = [np.zeros([m.nu, m.state.ndx]) for m in self.problem.runningModels]
         self.k = [np.zeros([m.nu]) for m in self.problem.runningModels]
 
-
         self.Wt = [np.zeros([y.np + y.nm, y.np + y.nm]) for y in self.measurement.runningModels] 
 
         self.Pt = [np.zeros([m.nu, m.nu]) for m in self.problem.runningModels]
@@ -510,11 +511,8 @@ class RiskSensitiveSolver(SolverAbstract):
         self.St = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
         self.st = [np.zeros(2*m.state.ndx) for m in self.models()]
         self.Ft = [np.nan for _ in self.models()]
-
-        self.fs = [np.zeros(2*m.state.ndx) for m in self.models()] 
-
         # The extended Dynamics & Cost  
-
+        self.fs = [np.zeros(2*m.state.ndx) for m in self.models()] 
         self.A = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
         self.B = [np.zeros([2*m.state.ndx, m.nu]) for m in self.models()]
         self.C = [np.zeros([2*m.state.ndx, y.np + y.nm]) for m,y in zip(self.problem.runningModels, self.measurement.runningModels)]
@@ -522,10 +520,8 @@ class RiskSensitiveSolver(SolverAbstract):
         self.Q = [np.zeros([2*m.state.ndx, 2*m.state.ndx]) for m in self.models()]
         self.q = [np.zeros(2*m.state.ndx) for m in self.models()]
         self.O = [np.zeros([m.nu, 2*m.state.ndx]) for m in self.models()]
-        
         # The Kalman Filter 
         self.G = [np.zeros([m.state.ndx, y.ny]) for m,y in zip(self.problem.runningModels, self.measurement.runningModels)] 
         self.Covariance = [np.zeros([m.state.ndx, m.state.ndx]) for m in self.models()] 
         ymodel = self.measurement.runningModels[0] 
         self.Covariance[0][:,:] = ymodel.sd.dot(ymodel.sn).dot(ymodel.sd.T)
-

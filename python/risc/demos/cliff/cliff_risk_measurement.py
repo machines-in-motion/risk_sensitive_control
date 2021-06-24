@@ -51,12 +51,13 @@ def riskCreateProblem(model):
     runningMeasurements = []
 
     for t, process_model in enumerate(runningModels):
-        state_diffusion = dt * np.eye(process_model.state.ndx)
+        state_diffusion = 2 * dt * np.eye(process_model.state.ndx)
         # state_diffusion[1,1] = 2*dt 
         # state_diffusion[3,3] = 5*dt 
         state_noise =  np.eye(process_model.state.ndx)
-        measurement_diffusion = 2 * dt * np.eye(process_model.state.ndx)
-        measurement_noise =  np.eye(process_model.state.ndx) 
+        measurement_diffusion =  5 * dt * np.eye(process_model.state.ndx)
+        measurement_diffusion[3,3] = 10*dt
+        measurement_noise =  2 * np.eye(process_model.state.ndx) 
         measurementMod = measurement.MeasurementModelFullState(process_model,state_diffusion, 
                     state_noise, measurement_diffusion, measurement_noise)
         runningMeasurements += [measurementMod]
