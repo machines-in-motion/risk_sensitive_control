@@ -13,7 +13,7 @@ import sys
 src_path = abspath('../../')
 sys.path.append(src_path)
 
-from solvers import measurement_risc, risk_sensitive_solver 
+from solvers import risc, risk_sensitive_solver 
 from utils import measurement 
 
 NX = 37  # state dimension 
@@ -22,7 +22,7 @@ N = 100  # number of nodes
 
 MAXITER = 10
 CALLBACKS = True
-SENSITIVITY  = 1. 
+SENSITIVITY  = -100. 
 
 
 def ddpCreateProblem(model):
@@ -78,7 +78,8 @@ if __name__ == "__main__":
     measurementModels = measurement.MeasurementModels(runningModels, runningMeasurements)
     print("measurement models initialized successfully ")
 
-    riskSolver = risk_sensitive_solver.RiskSensitiveSolver(riskProblem, measurementModels, SENSITIVITY)
+    # riskSolver = risk_sensitive_solver.RiskSensitiveSolver(riskProblem, measurementModels, SENSITIVITY)
+    riskSolver = risc.RiskSensitiveSolver(riskProblem, measurementModels, SENSITIVITY, withMeasurement=True)
     riskSolver.callback = [crocoddyl.CallbackLogger(), crocoddyl.CallbackVerbose()]
     print("risk solver initialized successfully ")
 
@@ -95,6 +96,11 @@ if __name__ == "__main__":
     for i in range(NU):
         plt.plot(np.arange(N), np.array(ddp.us)[:,i])
         plt.plot(np.arange(N), np.array(riskSolver.us)[:,i])
+
+    plt.figure("feedback")
+    for i in range(NU):
+        plt.plot(np.arange(N), -np.array(ddp.K)[:,i,i])
+        plt.plot(np.arange(N), np.array(riskSolver.K)[:,i,i])
 
     plt.show()
 
