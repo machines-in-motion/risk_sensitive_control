@@ -5,7 +5,7 @@ from pinocchio.utils import fromListToVectorOfString, rotate
 import os, sys, time 
 from os.path import dirname, join
 import yaml
-from simple_simulator import build_euler_simulator
+from consim import build_euler_simulator
 
 
 
@@ -42,7 +42,7 @@ class SimpleSimulator(object):
         
         try:
             self.simulator = build_euler_simulator(self.dt, self.n_steps, self.model, self.data,
-                self.stiffness, self.damping, self.friction_coeff, self.forward_dynamics_method) 
+                self.stiffness, self.damping, self.friction_coeff, self.forward_dynamics_method, 1) 
         except:
             raise BaseException('could not construct simulator')
         #add contacts to simulator
@@ -59,35 +59,35 @@ class SimpleSimulator(object):
     def reset_state(self, x):
         self.simulator.reset_state(x[:self.nq], x[self.nq:self.nq + self.nv], True)
 
-    def add_box(self, name, position, size, visual=None):
-        """ adds a box object to both simulation and gepetto viewer 
-        Args:
-            name: string assigning name to object 
-            position: 3d np.array describing cartesian position of object 
-            size: 3d np.array describing width(x), depth(y), height(z) of the object 
-            visual: robot wrapper object used to visualize the robot 
-        """
-        # add to the simulator 
-        try:
-            self.simulator.add_box(self.stiffness, self.damping,
-                    self.friction_coeff, position[:], size[:])
-        except:
-            raise BaseException('Failed to add BoxObstacle to the simulator') 
-        # load visual in gepetto viewer 
-        color = [0.,0.,0.,1.]
-        obj_pose = pin.SE3.Identity()
-        offset = np.zeros(3)
-        offset[2] = -.015
-        obj_pose.translation = position[:] + offset
-        if visual is not None:
-            viewer = visual.viz.viewer
-            viewer.gui.addBox("world/pinocchio/"+name, size[0], size[1], size[2], color)
-            viewer.gui.setVisibility("world/pinocchio/"+name,"ON")
-            viewer.gui.applyConfigurations(["world/pinocchio/"+name], [pin.SE3ToXYZQUATtuple(obj_pose)])
-            viewer.gui.refresh()
+    # def add_box(self, name, position, size, visual=None):
+    #     """ adds a box object to both simulation and gepetto viewer 
+    #     Args:
+    #         name: string assigning name to object 
+    #         position: 3d np.array describing cartesian position of object 
+    #         size: 3d np.array describing width(x), depth(y), height(z) of the object 
+    #         visual: robot wrapper object used to visualize the robot 
+    #     """
+    #     # add to the simulator 
+    #     try:
+    #         self.simulator.add_box(self.stiffness, self.damping,
+    #                 self.friction_coeff, position[:], size[:])
+    #     except:
+    #         raise BaseException('Failed to add BoxObstacle to the simulator') 
+    #     # load visual in gepetto viewer 
+    #     color = [0.,0.,0.,1.]
+    #     obj_pose = pin.SE3.Identity()
+    #     offset = np.zeros(3)
+    #     offset[2] = -.015
+    #     obj_pose.translation = position[:] + offset
+    #     if visual is not None:
+    #         viewer = visual.viz.viewer
+    #         viewer.gui.addBox("world/pinocchio/"+name, size[0], size[1], size[2], color)
+    #         viewer.gui.setVisibility("world/pinocchio/"+name,"ON")
+    #         viewer.gui.applyConfigurations(["world/pinocchio/"+name], [pin.SE3ToXYZQUATtuple(obj_pose)])
+    #         viewer.gui.refresh()
 
-    def clear_objects(self):
-        pass 
+    # def clear_objects(self):
+    #     pass 
 
     def integrate_step(self, u):
         self.simulator.step(self.torques(u))
@@ -99,7 +99,7 @@ class SimpleSimulator(object):
         # f = np.zeros([3, self.nc])
         f = []
         for i,c in enumerate(self.contacts):
-            f[:,i] += [c.f.copy()]
+            f += [c.f.copy()]
         return  np.resize(np.vstack(f), 3*self.nc)  
 
     def parse_contact_model(self):
@@ -126,5 +126,3 @@ class SimpleSimulator(object):
         self.friction_coeff = self.conf['static_friction_coefficient']
         self.contact_names = self.conf['contact_points']
         self.unilateral_contacts = self.conf["unilateral_contact"]
-   
-        
