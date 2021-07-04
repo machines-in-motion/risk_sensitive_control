@@ -1,4 +1,4 @@
-""" Solo squatting demo using both ddp and risk sensitive control """ 
+""" Solo trotting demo using both ddp and risk sensitive control """ 
 
 
 import numpy as np 
@@ -15,7 +15,7 @@ import seaborn as sns
 
 
 timeStep=1.e-2 
-sensitivity = 1.
+sensitivity = .1 
 solo12_config = Solo12Config() 
 horizon = 300 
 contact_names = ["FL_ANKLE", "FR_ANKLE", "HL_ANKLE", "HR_ANKLE"]
@@ -23,15 +23,15 @@ contact_names = ["FL_ANKLE", "FR_ANKLE", "HL_ANKLE", "HR_ANKLE"]
 LINE_WIDTH = 100 # printing purposes 
 MAXITER = 100 
 WITH_SIMULATION = True  
-PLOT_FEEDBACK = False   
+PLOT_FEEDBACK = False    
 
-plan_path = '../planner/jump_ref/new/'
+plan_path = '../planner/trot_ref/'
 
 # noise_models = ["Uniform", "SwingJoints","Unconstrained", "Contact"]
 noise_model = "Uniform"
 
 # plotting flags mainly for debugging purposes 
-PLOT_PLANNER_REF = False  
+PLOT_PLANNER_REF = False    
 
 
 
@@ -74,7 +74,7 @@ if __name__ =="__main__":
         fig, ax = plt.subplots(3,1)
         for i in range(3):
             for j in range(4):
-                ax[i].plot(time_array, vref[:-1,3*j+i], label=contact_names[j][:2]+label_direction[i]+'vel')
+                ax[i].plot(time_array, vref[:,3*j+i], label=contact_names[j][:2]+label_direction[i]+'vel')
             ax[i].legend()
             ax[i].grid()
         fig.canvas.set_window_title('contact velocities')
@@ -99,8 +99,8 @@ if __name__ =="__main__":
     solo12_gaits = locomotion_tools.QuadrupedGaits(solo12, *contact_names)
     solo12_gaits.WHICH_MEASUREMENT = noise_model 
 
-    loco3dModels, runningMeasurements = solo12_gaits.createProblemKinoDynJump(x0, timeStep, 
-        contact_status_ref, qref, dqref, contact_positions_ref, vref, com_ref)
+    loco3dModels, runningMeasurements = solo12_gaits.createProblemStateTracking(x0, timeStep, 
+        contact_status_ref, qref, dqref, contact_positions_ref, vref)
     print(" OCP models generated successfully ".center(LINE_WIDTH,'-'))
 
     problem = crocoddyl.ShootingProblem(x0, loco3dModels[:-1], loco3dModels[-1])
