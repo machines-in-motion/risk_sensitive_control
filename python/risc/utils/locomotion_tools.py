@@ -28,15 +28,13 @@ def force_from_bullet(contact_ids, actve_ids, forces):
         f[3*k:3*k+3] = np.resize(forces[i][:3] ,3)
     return f
  
-def parse_kindynamic_plan_slo12(path, solo_path):
-    contact_names = ['FL_FOOT', 'FR_FOOT', 'HL_FOOT', 'HR_FOOT']
-    solo12 = robot_loader.load_solo12_pinocchio(solo_path)
-    q = np.loadtxt(path+"/quadruped_generalized_positions.dat", dtype=float)[:,1:] 
-    dq = np.loadtxt(path+"/quadruped_generalized_velocities.dat", dtype=float)[:,1:] 
-    f = np.loadtxt(path+"/quadruped_forces.dat", dtype=float)[:,1:] 
-    x = np.loadtxt(path+"/quadruped_positions_abs.dat", dtype=float)[:,1:] 
-    v = np.loadtxt(path+"/quadruped_velocities_abs.dat", dtype=float)[:,1:] 
-    contact_activation = np.loadtxt(path+"/quadruped_contact_activation.dat", dtype=float)[:,1:] 
+def parse_kindynamic_plan_slo12(path, solo12, contact_names):
+    q = np.loadtxt(path+"quadruped_generalized_positions.dat", dtype=float)[:,1:] 
+    dq = np.loadtxt(path+"quadruped_generalized_velocities.dat", dtype=float)[:,1:] 
+    f = np.loadtxt(path+"quadruped_forces.dat", dtype=float)[:,1:] 
+    x = np.loadtxt(path+"quadruped_positions_abs.dat", dtype=float)[:,1:] 
+    v = np.loadtxt(path+"quadruped_velocities_abs.dat", dtype=float)[:,1:] 
+    contact_activation = np.loadtxt(path+"quadruped_contact_activation.dat", dtype=float)[:,1:] 
     # com = np.loadtxt(path+"/quadruped_com.dat", dtype=float)[:,1:] 
     contact_ids = [solo12.model.getFrameId(cnt) for cnt in contact_names]
     contact_positions = np.zeros([q.shape[0], 12])
@@ -264,7 +262,7 @@ class QuadrupedGaits(object):
             
 
     def createProblemKinoDynJump(self, x0, timeStep, ContactPlan, qRef, dqRef, FootPosRef, FootVelRef, CoMRef):
-        horizon = qRef.shape[0]
+        horizon = qRef.shape[0] 
         loco3dModel = []
         measurementModels = []
         for t in range(horizon):
@@ -295,25 +293,22 @@ class QuadrupedGaits(object):
                 for i in support:
                     frame_id  = self.contact_ids[i]
                     supportIds += [frame_id]
-                    # xref = crocoddyl.FrameTranslation(frame_id, FootPosRef[t,3*i:3*i+3])
+                    footRef = FootPosRef[t,3*i:3*i+3].copy()
+                    footRef[2] = -1.e-5
+                    pin.framesForwardKinematics(self.rmodel,self.rdata, qRef[t])
+                    cone_rotation = self.rdata.oMf[frame_id].rotation .T.dot(self.nsurf)
                     xref = crocoddyl.FrameTranslation(frame_id, np.array([0., 0., 0.]))
                     supportContactModel = crocoddyl.ContactModel3D(self.state, xref, self.actuation.nu, 
                                                                     self.baumgarte)
-                    contactModel.addContact(self.rmodel.frames[frame_id].name + "_contact", 
-                                            supportContactModel)
+                    contactModel.addContact(self.rmodel.frames[frame_id].name + "_contact", supportContactModel)
                     # friction cone  
-                    cone = crocoddyl.FrictionCone(self.nsurf, self.mu, 4, False)
+                    cone = crocoddyl.FrictionCone(cone_rotation, self.mu, 4, True)#, 0., 1000.)
+                    frameCone = crocoddyl.FrameFrictionCone(frame_id, cone)
+
                     frictionCone = crocoddyl.CostModelContactFrictionCone(
-                    self.state, crocoddyl.ActivationModelQuadraticBarrier(crocoddyl.ActivationBounds(cone.lb, cone.ub)),
-                    crocoddyl.FrameFrictionCone(frame_id, cone), self.actuation.nu)
+                        self.state, crocoddyl.ActivationModelQuadraticBarrier(crocoddyl.ActivationBounds(cone.lb, cone.ub)),
+                        frameCone , self.actuation.nu)
                     costModel.addCost(self.rmodel.frames[frame_id].name + "_frictionCone", frictionCone, 1.e-2) 
-                    motion_ref = pin.Motion.Zero()
-                    vref = crocoddyl.FrameMotion(frame_id, motion_ref)
-                    FootVelCost = crocoddyl.CostModelFrameVelocity(self.state, vref, self.actuation.nu)
-                    costModel.addCost(self.rmodel.frames[frame_id].name + "_Vel", FootVelCost, 1.e-3)
-                    xref = crocoddyl.FrameTranslation(frame_id, FootPosRef[t,3*i:3*i+3]) 
-                    footTrack = crocoddyl.CostModelFrameTranslation(self.state, xref, self.actuation.nu)
-                    costModel.addCost(self.rmodel.frames[frame_id].name + "_footTrack", footTrack, 1.e-3) 
             # state and control cost 
             # create swing cost 
             # if len(support+pre_impact)>0: # t>120:# and t<180: # and len(pre_impact)>0:
@@ -342,17 +337,17 @@ class QuadrupedGaits(object):
             #         vref = crocoddyl.FrameMotion(frame_id, motion_ref)
             #         FootVelCost = crocoddyl.CostModelFrameVelocity(self.state, vref, self.actuation.nu)
             #         costModel.addCost(self.rmodel.frames[frame_id].name + "_Vel", FootVelCost, 1.e-3)
-            if len(swing)>0:
-                for i in swing:
-                    frame_id  = self.contact_ids[i]
-                    xref = crocoddyl.FrameTranslation(frame_id, FootPosRef[t,3*i:3*i+3]) 
-                    footTrack = crocoddyl.CostModelFrameTranslation(self.state, xref, self.actuation.nu)
-                    costModel.addCost(self.rmodel.frames[frame_id].name + "_footTrack", footTrack, 5.e-5)
-                    # motion_ref = pin.Motion.Zero()
-                    motion_ref.linear = FootVelRef[t, 3*i:3*i+3] 
-                    vref = crocoddyl.FrameMotion(frame_id, motion_ref)
-                    FootVelCost = crocoddyl.CostModelFrameVelocity(self.state, vref, self.actuation.nu)
-                    costModel.addCost(self.rmodel.frames[frame_id].name + "_Vel", FootVelCost, 1.e-2)
+            # if len(swing)>0:
+            #     for i in swing:
+            #         frame_id  = self.contact_ids[i]
+            #         xref = crocoddyl.FrameTranslation(frame_id, FootPosRef[t,3*i:3*i+3]) 
+            #         footTrack = crocoddyl.CostModelFrameTranslation(self.state, xref, self.actuation.nu)
+            #         costModel.addCost(self.rmodel.frames[frame_id].name + "_footTrack", footTrack, 5.e-5)
+            #         motion_ref = pin.Motion.Zero()
+            #         motion_ref.linear = FootVelRef[t, 3*i:3*i+3] 
+            #         vref = crocoddyl.FrameMotion(frame_id, motion_ref)
+            #         FootVelCost = crocoddyl.CostModelFrameVelocity(self.state, vref, self.actuation.nu)
+            #         costModel.addCost(self.rmodel.frames[frame_id].name + "_Vel", FootVelCost, 1.e-2)
 
             stateWeights = np.array([5.e-1] * 3 + [5.e-1] * 3 + [5.e-1] * (self.rmodel.nv - 6) + [1.e-2] * 6 
             + [1.e-3] * (self.rmodel.nv - 6))
@@ -369,66 +364,66 @@ class QuadrupedGaits(object):
             loco3dModel += [crocoddyl.IntegratedActionModelEuler(dmodel, timeStep)]
             # 
             """ Creating the Measurement Models """
+
             if self.WHICH_MEASUREMENT is None:
                 pass 
             elif self.WHICH_MEASUREMENT == "Uniform":
-                state_diffusion = .1 * np.eye(dmodel.state.ndx)
-                state_noise = 1.e-7 * np.eye(dmodel.state.ndx)
-                measurement_diffusion = .1 * np.eye(dmodel.state.ndx)
-                measurement_noise = 5.e-3* np.eye(dmodel.state.ndx) 
-                swingIds = None 
-                measurementMod = measurement.MeasurementModelSwingJoints(loco3dModel[-1],state_diffusion, 
-                            state_noise, measurement_diffusion, measurement_noise, self.contact_names, swingIds)
+                state_diffusion = timeStep * np.eye(dmodel.state.ndx)
+                state_noise = np.eye(dmodel.state.ndx)
+                measurement_diffusion = 10* timeStep * np.eye(dmodel.state.ndx)
+                measurement_noise = np.eye(dmodel.state.ndx) 
+                measurementMod = measurement.MeasurementModelFullState(loco3dModel[-1],state_diffusion, 
+                            state_noise, measurement_diffusion, measurement_noise)
                 measurementModels += [measurementMod]
 
-            elif self.WHICH_MEASUREMENT == "SwingJoints":
-                state_diffusion = .1 * np.eye(dmodel.state.ndx)
-                state_noise = 1.e-7 * np.eye(dmodel.state.ndx)
-                measurement_diffusion = .1 * np.eye(dmodel.state.ndx)
-                measurement_noise = 5.e-3 * np.eye(dmodel.state.ndx) 
-                swingIds = [self.contact_ids[i] for i in swing+pre_impact]
-                if len(swingIds) == 0:
-                    swingIds = None 
-                    measurementMod = measurement.MeasurementModelSwingJoints(loco3dModel[-1],state_diffusion, 
-                            state_noise, measurement_diffusion, measurement_noise, self.contact_names, swingIds)
-                else:
-                    swingQ_noise = [[5.e-5, 5.e-5, 5.e-5] for _ in swingIds]
-                    swingdQ_noise = [[1.e-5, 1.e-5, 1.e-5] for _ in swingIds]
-                    measurementMod = measurement.MeasurementModelSwingJoints(loco3dModel[-1],state_diffusion, 
-                            state_noise, measurement_diffusion, measurement_noise, self.contact_names, swingIds,swingQ_noise, swingdQ_noise)
-                measurementModels += [measurementMod]
-            elif self.WHICH_MEASUREMENT == "Unconstrained":
-                state_diffusion = .1 * np.eye(loco3dModel[-1].state.ndx)
-                state_noise = 1.e-7 * np.eye(loco3dModel[-1].state.ndx)
-                measurement_diffusion = .1 * np.eye(loco3dModel[-1].state.ndx)
-                measurement_noise = 1.e-3 * np.eye(loco3dModel[-1].state.ndx) 
-                swingIds = [self.contact_ids[i] for i in swing+pre_impact]
-                if len(swingIds) == 0:
-                    swingIds = None 
-                    measurementMod = measurement.MeasurementModelSwingJoints(loco3dModel[-1],state_diffusion, 
-                            state_noise, measurement_diffusion, measurement_noise, self.contact_names, swingIds)
-                else:
-                    swingQ_noise = [[5.e-5, 5.e-5, 5.e-5] for _ in swingIds]
-                    swingdQ_noise = [[1.e-5, 1.e-5, 1.e-5] for _ in swingIds]
-                    measurementMod = measurement.MeasurementModelContactNoise(loco3dModel[-1],state_diffusion, 
-                            state_noise, measurement_diffusion, measurement_noise, swingIds ,swingQ_noise, swingdQ_noise)
-                measurementModels += [measurementMod]
-            elif self.WHICH_MEASUREMENT == "Contact":
-                state_diffusion = .1 * np.eye(loco3dModel[-1].state.ndx)
-                state_noise = 1.e-7 * np.eye(loco3dModel[-1].state.ndx)
-                measurement_diffusion = .1 * np.eye(loco3dModel[-1].state.ndx)
-                measurement_noise = 1.e-3 * np.eye(loco3dModel[-1].state.ndx) 
-                swingIds = [self.contact_ids[i] for i in swing+pre_impact]
-                if len(swingIds) == 0:
-                    swingIds = None 
-                    measurementMod = measurement.MeasurementModelSwingJoints(loco3dModel[-1],state_diffusion, 
-                            state_noise, measurement_diffusion, measurement_noise, self.contact_names, swingIds)
-                else:
-                    swingQ_noise = [[5.e-5, 5.e-5, 5.e-5] for _ in swingIds]
-                    swingdQ_noise = [[1.e-5, 1.e-5, 1.e-5] for _ in swingIds]
-                    measurementMod = measurement.MeasurementModelContactConsistent(loco3dModel[-1],state_diffusion, 
-                            state_noise, measurement_diffusion, measurement_noise, swingIds, supportIds ,swingQ_noise, swingdQ_noise)
-                measurementModels += [measurementMod]
+            # elif self.WHICH_MEASUREMENT == "SwingJoints":
+            #     state_diffusion = .1 * np.eye(dmodel.state.ndx)
+            #     state_noise = 1.e-7 * np.eye(dmodel.state.ndx)
+            #     measurement_diffusion = .1 * np.eye(dmodel.state.ndx)
+            #     measurement_noise = 5.e-3 * np.eye(dmodel.state.ndx) 
+            #     swingIds = [self.contact_ids[i] for i in swing+pre_impact]
+            #     if len(swingIds) == 0:
+            #         swingIds = None 
+            #         measurementMod = measurement.MeasurementModelSwingJoints(loco3dModel[-1],state_diffusion, 
+            #                 state_noise, measurement_diffusion, measurement_noise, self.contact_names, swingIds)
+            #     else:
+            #         swingQ_noise = [[5.e-5, 5.e-5, 5.e-5] for _ in swingIds]
+            #         swingdQ_noise = [[1.e-5, 1.e-5, 1.e-5] for _ in swingIds]
+            #         measurementMod = measurement.MeasurementModelSwingJoints(loco3dModel[-1],state_diffusion, 
+            #                 state_noise, measurement_diffusion, measurement_noise, self.contact_names, swingIds,swingQ_noise, swingdQ_noise)
+            #     measurementModels += [measurementMod]
+            # elif self.WHICH_MEASUREMENT == "Unconstrained":
+            #     state_diffusion = .1 * np.eye(loco3dModel[-1].state.ndx)
+            #     state_noise = 1.e-7 * np.eye(loco3dModel[-1].state.ndx)
+            #     measurement_diffusion = .1 * np.eye(loco3dModel[-1].state.ndx)
+            #     measurement_noise = 1.e-3 * np.eye(loco3dModel[-1].state.ndx) 
+            #     swingIds = [self.contact_ids[i] for i in swing+pre_impact]
+            #     if len(swingIds) == 0:
+            #         swingIds = None 
+            #         measurementMod = measurement.MeasurementModelSwingJoints(loco3dModel[-1],state_diffusion, 
+            #                 state_noise, measurement_diffusion, measurement_noise, self.contact_names, swingIds)
+            #     else:
+            #         swingQ_noise = [[5.e-5, 5.e-5, 5.e-5] for _ in swingIds]
+            #         swingdQ_noise = [[1.e-5, 1.e-5, 1.e-5] for _ in swingIds]
+            #         measurementMod = measurement.MeasurementModelContactNoise(loco3dModel[-1],state_diffusion, 
+            #                 state_noise, measurement_diffusion, measurement_noise, swingIds ,swingQ_noise, swingdQ_noise)
+            #     measurementModels += [measurementMod]
+            # elif self.WHICH_MEASUREMENT == "Contact":
+            #     state_diffusion = .1 * np.eye(loco3dModel[-1].state.ndx)
+            #     state_noise = 1.e-7 * np.eye(loco3dModel[-1].state.ndx)
+            #     measurement_diffusion = .1 * np.eye(loco3dModel[-1].state.ndx)
+            #     measurement_noise = 1.e-3 * np.eye(loco3dModel[-1].state.ndx) 
+            #     swingIds = [self.contact_ids[i] for i in swing+pre_impact]
+            #     if len(swingIds) == 0:
+            #         swingIds = None 
+            #         measurementMod = measurement.MeasurementModelSwingJoints(loco3dModel[-1],state_diffusion, 
+            #                 state_noise, measurement_diffusion, measurement_noise, self.contact_names, swingIds)
+            #     else:
+            #         swingQ_noise = [[5.e-5, 5.e-5, 5.e-5] for _ in swingIds]
+            #         swingdQ_noise = [[1.e-5, 1.e-5, 1.e-5] for _ in swingIds]
+            #         measurementMod = measurement.MeasurementModelContactConsistent(loco3dModel[-1],state_diffusion, 
+            #                 state_noise, measurement_diffusion, measurement_noise, swingIds, supportIds ,swingQ_noise, swingdQ_noise)
+            #     measurementModels += [measurementMod]
             else:
                 raise BaseException("Measurement Model Not Recognized")
         return loco3dModel, measurementModels

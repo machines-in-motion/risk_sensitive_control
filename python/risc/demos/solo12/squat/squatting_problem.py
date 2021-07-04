@@ -157,4 +157,12 @@ class QuadrupedSquatting(object):
                 raise BaseException("Measurement Model Not Recognized")
         return loco3dModel, measurementModels
 
+    
+    def interpolate_state(self, x1, x2, d):
+        """ interpolate state for feedback at higher rate that plan """
+        x = np.zeros(self.rmodel.nq+self.rmodel.nv)
+        x[:self.rmodel.nq] =  pin.interpolate(self.rmodel, x1[:self.rmodel.nq], x2[:self.rmodel.nq], d)
+        x[self.rmodel.nq:] = x1[self.rmodel.nq:] + d*(x2[self.rmodel.nq:] - x1[self.rmodel.nq:])
+        return x
+
 

@@ -9,10 +9,10 @@ import matplotlib.pyplot as plt
 import pinocchio as pin 
 import crocoddyl 
 from robot_properties_solo.config import Solo12Config
-from utils import plotting_tools, measurement, simple_simulator 
+from utils import plotting_tools, measurement, simple_simulator , locomotion_tools
 from solvers import risc
 import seaborn as sns 
-import squatting_problem 
+
 
 timeStep=1.e-2 
 sensitivity = .1
@@ -22,29 +22,86 @@ contact_names = ["FL_ANKLE", "FR_ANKLE", "HL_ANKLE", "HR_ANKLE"]
 # 
 LINE_WIDTH = 100 # printing purposes 
 MAXITER = 100 
-WITH_SIMULATION = True 
-PLOT_FEEDBACK = False 
+WITH_SIMULATION = True  
+PLOT_FEEDBACK = False   
 
+plan_path = '../planner/jump_ref/new/'
 
 # noise_models = ["Uniform", "SwingJoints","Unconstrained", "Contact"]
-noise_models = ["Uniform"]
+noise_model = "Uniform"
+
+# plotting flags mainly for debugging purposes 
+PLOT_PLANNER_REF = False  
+
+
 
 if __name__ =="__main__":
     # load solo 
     solo12 = solo12_config.pin_robot
-    contact_names = solo12_config.end_effector_names
     # plotting tools 
     solo12_plots = plotting_tools.RobotPlottingTools(solo12, contact_names)
-    x0 = np.hstack([solo12_config.q0, solo12_config.v0])
-    solo12.model.referenceConfigurations["standing"] = solo12_config.q0.copy()
+    # reading kinodynamic plan
+    qref, dqref, fref, vref, contact_positions_ref, \
+    contact_status_ref, com_ref = locomotion_tools.parse_kindynamic_plan_slo12(plan_path, solo12, contact_names)
+     # initialization states 
+    solo12.model.referenceConfigurations["standing"] = qref[0]
+    x0 = np.concatenate([qref[0], np.zeros(solo12.model.nv)])
     solo12.defaultState = x0.copy()
-    time_array = timeStep*np.arange(horizon)
-    # ocp setup 
-    squatting = squatting_problem.QuadrupedSquatting(solo12, *contact_names)
-    squatting.WHICH_MEASUREMENT = "Uniform"
-    loco3dModels, runningMeasurements = squatting.createBalanceProblem(x0, timeStep, 
-                    horizon)
-    print("Optimal Control Problem Constructed".center(LINE_WIDTH,'-'))
+    print(" Kinodynamic Plan Loaded Successfully ".center(LINE_WIDTH,'-'))
+
+    time_array = timeStep * np.arange(qref.shape[0]) # assumes all kinodyn trajectories are same dimension
+
+    label_direction = [' x ', ' y ', ' z ']
+    """ Plot KinoDynamicPlanner Reference Trajectories """
+    if PLOT_PLANNER_REF:
+        # contact forces 
+        fig, ax = plt.subplots(3,1)
+        for i in range(3):
+            for j in range(4):
+                ax[i].plot(time_array, fref[:,3*j+i], label=contact_names[j][:2]+label_direction[i]+'force')
+            ax[i].legend()
+            ax[i].grid()
+        fig.canvas.set_window_title('contact forces')
+        # contact positions
+        fig, ax = plt.subplots(3,1)
+        for i in range(3):
+            for j in range(4):
+                ax[i].plot(time_array, contact_positions_ref[:,3*j+i], label=contact_names[j][:2]+label_direction[i]+'pos')
+            ax[i].legend()
+            ax[i].grid()
+        fig.canvas.set_window_title('contact positions')
+        # contact velocities
+        fig, ax = plt.subplots(3,1)
+        for i in range(3):
+            for j in range(4):
+                ax[i].plot(time_array, vref[:-1,3*j+i], label=contact_names[j][:2]+label_direction[i]+'vel')
+            ax[i].legend()
+            ax[i].grid()
+        fig.canvas.set_window_title('contact velocities')
+        # com ref 
+        plt.figure()
+        for i in range(3):
+            plt.plot(time_array, com_ref[:,i], label='com'+label_direction[i])
+        plt.grid()
+        plt.legend()
+        plt.title('CoM Ref trajectory')
+
+        orientation_names = ['qx', 'qy', 'qz', 'qw']
+        plt.figure()
+        for i in range(4):
+            plt.plot(time_array, qref[:,i+3], label=orientation_names[i])
+        plt.grid()
+        plt.legend()
+        plt.title('base Orientation ')
+
+    """ Now back to running stuff """
+
+    solo12_gaits = locomotion_tools.QuadrupedGaits(solo12, *contact_names)
+    solo12_gaits.WHICH_MEASUREMENT = noise_model 
+
+    loco3dModels, runningMeasurements = solo12_gaits.createProblemKinoDynJump(x0, timeStep, 
+        contact_status_ref, qref, dqref, contact_positions_ref, vref, com_ref)
+    print(" OCP models generated successfully ".center(LINE_WIDTH,'-'))
 
     problem = crocoddyl.ShootingProblem(x0, loco3dModels[:-1], loco3dModels[-1])
 
@@ -63,6 +120,7 @@ if __name__ =="__main__":
     solvers = [fddp]
     solver_names = ["fddp"]
 
+    """ Risk sensitive with process noise only """
     print(" Setting up Risk Sensitive with Process Noise ".center(LINE_WIDTH,'-'))
 
     riskProblem = crocoddyl.ShootingProblem(x0, loco3dModels[:-1], loco3dModels[-1])
@@ -79,6 +137,11 @@ if __name__ =="__main__":
     solvers += [processRiskSolver]
     solver_names += ["process_risk_uniform"]
 
+    print("Solving Process Risk Sensitive Completed".center(LINE_WIDTH,'-'))
+
+
+    """ Risk sensitive with both process and measurement noise """
+    print(" Setting up Risk Sensitive with Measurement Noise ".center(LINE_WIDTH,'-'))
 
     measurementRiskSolver = risc.RiskSensitiveSolver(riskProblem, measurementModels, sensitivity)
     measurementRiskSolver.callback = [crocoddyl.CallbackLogger(), crocoddyl.CallbackVerbose()]
@@ -90,6 +153,9 @@ if __name__ =="__main__":
 
     solvers += [measurementRiskSolver]
     solver_names += ["measurement_risk_uniform"]
+
+    print("Solving Measurement Risk Sensitive Completed".center(LINE_WIDTH,'-'))
+
 
     if PLOT_FEEDBACK:
         plt.rc('legend', fontsize=30)    # legend fontsize
@@ -153,9 +219,9 @@ if __name__ =="__main__":
             for t, ui in enumerate(soli.us):
                 for d in range(10):
                         # diff(xact, xref) = xref [-] xact --> on manifold 
-                    xref = squatting.interpolate_state(soli.xs[t], soli.xs[t+1], .1*d)
+                    xref = solo12_gaits.interpolate_state(soli.xs[t], soli.xs[t+1], .1*d)
                     xact = sim.read_state()
-                    diff = squatting.state.diff(xact, xref)
+                    diff = solo12_gaits.state.diff(xact, xref)
                     if 'ddp' in solver_names[i]:
                         u = np.resize(ui + soli.K[t].dot(diff), sim.m)
                     else:
@@ -182,6 +248,8 @@ if __name__ =="__main__":
         base_tracking_fig = solo12_plots.compare_base_tracking(states, fddp.xs, names=solver_names)
         contact_height_tracking_fig = solo12_plots.compare_frame_height(contact_names, states, fddp.xs, names=solver_names ,setlim=False)
         contact_force_fig = solo12_plots.compare_simulation_froces(fddp, forces, dt=1.e-2, names=solver_names)
+
+
 
 
     plt.show()
