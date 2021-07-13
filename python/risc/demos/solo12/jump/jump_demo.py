@@ -15,7 +15,7 @@ import seaborn as sns
 
 
 timeStep=1.e-2 
-sensitivity = 1.
+sensitivity = 20.
 solo12_config = Solo12Config() 
 horizon = 300 
 contact_names = ["FL_ANKLE", "FR_ANKLE", "HL_ANKLE", "HR_ANKLE"]
@@ -28,7 +28,10 @@ PLOT_FEEDBACK = False
 plan_path = '../planner/jump_ref/new/'
 
 # noise_models = ["Uniform", "SwingJoints","Unconstrained", "Contact"]
-noise_model = "Uniform"
+# noise_model = "Uniform"
+# noise_model = "SwingJoints"
+# noise_model = "Unconstrained"
+noise_model = "Contact"
 
 # plotting flags mainly for debugging purposes 
 PLOT_PLANNER_REF = False  

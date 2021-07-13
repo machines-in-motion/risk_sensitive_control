@@ -103,6 +103,9 @@ class MeasurementModelSwingJoints(object):
         self.sn = sn
         self.md = md
         self.mn = mn
+        self.np = self.sd.shape[0]
+        self.nm = self.md.shape[0]
+        
         self.measurement = np.zeros(self.nx)
         self.MeasurementDataType = MeasurementDataFullState
         self.contact_names = contactNames
@@ -169,8 +172,9 @@ class MeasurementModelSwingJoints(object):
         # if recalc:
         #     self.calc(data, mdata, x, u)
         self.calc(data, mdata, x, u)
-        mdata.dx[:,:] = data.Fx.copy() 
-        mdata.du[:,:] =  data.Fu.copy()
+        mdata.dx[:,:] = np.eye(self.ndx) #data.Fx.copy() 
+        mdata.du[:,:] =  np.zeros([self.ndx, self.nu]) # data.Fu.copy()
+
 
     def parse_model(self):
         # look at base joint if planar or spatial 
@@ -234,6 +238,11 @@ class MeasurementModelContactNoise(object):
         self.sn = sn
         self.md = md
         self.mn = mn
+        self.np = self.sd.shape[0]
+        self.nm = self.md.shape[0]
+        self.np = self.sd.shape[0]
+        self.nm = self.md.shape[0]
+        
         self.measurement = np.zeros(self.nx)
         self.MeasurementDataType = MeasurementDataContactNoise
         self.swingIds = swingIds
@@ -298,8 +307,9 @@ class MeasurementModelContactNoise(object):
             # self.calc(data, mdata, x, u)
         self.calc(data, mdata, x, u)
         # mdata.dx[:,:] = np.eye(self.ndx)
-        mdata.dx[:, :] = data.Fx.copy()
-        mdata.du[:, :] = data.Fu.copy()
+        mdata.dx[:,:] = np.eye(self.ndx) #data.Fx.copy() 
+        mdata.du[:,:] =  np.zeros([self.ndx, self.nu]) # data.Fu.copy()
+
 
     def processNoise(self):
         """ return a sample noise vector """
@@ -335,6 +345,8 @@ class MeasurementModelContactConsistent(object):
         self.sn = sn
         self.md = md
         self.mn = mn
+        self.np = self.sd.shape[0]
+        self.nm = self.md.shape[0]
         self.measurement = np.zeros(self.nx)
         self.MeasurementDataType = MeasurementDataContactConsistent
         self.swingIds = swingIds
@@ -420,9 +432,8 @@ class MeasurementModelContactConsistent(object):
             pass
             # self.calc(data, mdata, x, u)
         self.calc(data, mdata, x, u)
-        # mdata.dx[:,:] = np.eye(self.ndx)
-        mdata.dx[:, :] = data.Fx.copy()
-        mdata.du[:, :] = data.Fu.copy()
+        mdata.dx[:,:] = np.eye(self.ndx) #data.Fx.copy() 
+        mdata.du[:,:] =  np.zeros([self.ndx, self.nu]) # data.Fu.copy()
 
     def processNoise(self):
         """ return a sample noise vector """
