@@ -23,7 +23,7 @@ contact_names = ["FL_ANKLE", "FR_ANKLE", "HL_ANKLE", "HR_ANKLE"]
 LINE_WIDTH = 100 # printing purposes 
 MAXITER = 100 
 WITH_SIMULATION = False   
-PLOT_FEEDBACK = True  
+PLOT_FEEDBACK = False 
 
 plan_path = '../planner/trot_ref/'
 
@@ -33,6 +33,7 @@ noise_model = "Uniform"
 # plotting flags mainly for debugging purposes 
 PLOT_PLANNER_REF = False    
 
+SAVE_SOLUTION = True 
 
 
 if __name__ =="__main__":
@@ -250,6 +251,14 @@ if __name__ =="__main__":
         contact_force_fig = solo12_plots.compare_simulation_froces(fddp, forces, dt=1.e-2, names=solver_names)
 
 
+    if SAVE_SOLUTION: 
+        for i, soli in enumerate(solvers):
+            np.save(solver_names[i]+'_x_ref', np.array(soli.xs)) 
+            np.save(solver_names[i]+'_u_ref', np.array(soli.us)) 
+            if "ddp" in solver_names[i]:
+                np.save(solver_names[i]+'_K_ref', -np.array(soli.K))  
+            else: 
+                np.save(solver_names[i]+'_K_ref', np.array(soli.K))   
 
 
     plt.show()
