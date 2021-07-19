@@ -33,7 +33,7 @@ noise_model = "Uniform"
 # plotting flags mainly for debugging purposes 
 PLOT_PLANNER_REF = False    
 
-SAVE_SOLUTION = True 
+SAVE_SOLUTION = False  
 
 
 if __name__ =="__main__":

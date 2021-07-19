@@ -136,7 +136,7 @@ class QuadrupedGaits(object):
                     # footRef = FootPosRef[t,3*i:3*i+3].copy()
                     # footRef[2] = -1.e-5
                     pin.framesForwardKinematics(self.rmodel,self.rdata, qRef[t])
-                    cone_rotation = self.rdata.oMf[frame_id].rotation .T.dot(self.nsurf)
+                    cone_rotation = self.rdata.oMf[frame_id].rotation.T # .dot(self.nsurf)
                     xref = crocoddyl.FrameTranslation(frame_id, np.array([0., 0., 0.]))
                     supportContactModel = crocoddyl.ContactModel3D(self.state, xref, self.actuation.nu, 
                                                                     self.baumgarte)
