@@ -22,8 +22,8 @@ contact_names = ["FL_ANKLE", "FR_ANKLE", "HL_ANKLE", "HR_ANKLE"]
 # 
 LINE_WIDTH = 100 # printing purposes 
 MAXITER = 100 
-WITH_SIMULATION = False   
-PLOT_FEEDBACK = False 
+WITH_SIMULATION = True   
+PLOT_FEEDBACK = False
 
 plan_path = '../planner/trot_ref/'
 

@@ -77,9 +77,8 @@ class QuadrupedSquatting(object):
         self.rmodel.defaultState = np.concatenate([q0, np.zeros(self.rmodel.nv)])
         self.firstStep = True
         # Defining the friction coefficient and normal
-        self.mu = 0.6
+        self.mu = 0.3
         self.nsurf =  np.eye(3)
-        self.nsurf =  np.array([0.,0., 1.])
         self.baumgarte = np.array([0., 50.]) # pd gains to stabalize the contact 
         self.walking_sequence = []
         self.log_plan = 'ON'
@@ -109,7 +108,7 @@ class QuadrupedSquatting(object):
                 # footRef = FootPosRef[t,3*i:3*i+3].copy()
                 # footRef[2] = -1.e-5
                 pin.framesForwardKinematics(self.rmodel,self.rdata, x0[:self.rmodel.nq])
-                cone_rotation = self.rdata.oMf[frame_id].rotation .T.dot(self.nsurf)
+                cone_rotation = self.rdata.oMf[frame_id].rotation.T.dot(self.nsurf)
                 xref = crocoddyl.FrameTranslation(frame_id, np.array([0., 0., 0.]))
                 supportContactModel = crocoddyl.ContactModel3D(self.state, xref, self.actuation.nu, 
                                                                 self.baumgarte)

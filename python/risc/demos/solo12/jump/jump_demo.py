@@ -28,10 +28,10 @@ PLOT_FEEDBACK = False
 plan_path = '../planner/jump_ref/new/'
 
 # noise_models = ["Uniform", "SwingJoints","Unconstrained", "Contact"]
-# noise_model = "Uniform"
+noise_model = "Uniform"
 # noise_model = "SwingJoints"
 # noise_model = "Unconstrained"
-noise_model = "Contact"
+# noise_model = "Contact"
 
 # plotting flags mainly for debugging purposes 
 PLOT_PLANNER_REF = False  
@@ -161,6 +161,7 @@ if __name__ =="__main__":
 
 
     if PLOT_FEEDBACK:
+        """ Plotting feedback controls only, can be commented out """
         plt.rc('legend', fontsize=30)    # legend fontsize
         fig, ax = plt.subplots(3, 6,figsize=(30,15))
 
