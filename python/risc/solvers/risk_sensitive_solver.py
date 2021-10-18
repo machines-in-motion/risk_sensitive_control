@@ -1,3 +1,5 @@
+""" This is an older version based on Brahaym's derivations, not complete """
+
 import numpy as np 
 import scipy.linalg as scl
 

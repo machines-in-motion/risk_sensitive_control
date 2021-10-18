@@ -15,7 +15,7 @@ import seaborn as sns
 
 
 timeStep=1.e-2 
-sensitivity = 20.
+sensitivity = .1
 solo12_config = Solo12Config() 
 horizon = 300 
 contact_names = ["FL_ANKLE", "FR_ANKLE", "HL_ANKLE", "HR_ANKLE"]
@@ -28,10 +28,10 @@ PLOT_FEEDBACK = False
 plan_path = '../planner/jump_ref/new/'
 
 # noise_models = ["Uniform", "SwingJoints","Unconstrained", "Contact"]
-noise_model = "Uniform"
+# noise_model = "Uniform"
 # noise_model = "SwingJoints"
 # noise_model = "Unconstrained"
-# noise_model = "Contact"
+noise_model = "Contact"
 
 # plotting flags mainly for debugging purposes 
 PLOT_PLANNER_REF = False  
@@ -146,7 +146,7 @@ if __name__ =="__main__":
     """ Risk sensitive with both process and measurement noise """
     print(" Setting up Risk Sensitive with Measurement Noise ".center(LINE_WIDTH,'-'))
 
-    measurementRiskSolver = risc.RiskSensitiveSolver(riskProblem, measurementModels, sensitivity)
+    measurementRiskSolver = risc.RiskSensitiveSolver(riskProblem, measurementModels, sensitivity, True)
     measurementRiskSolver.callback = [crocoddyl.CallbackLogger(), crocoddyl.CallbackVerbose()]
 
     risk_xs = [xi for xi in fddp.xs]

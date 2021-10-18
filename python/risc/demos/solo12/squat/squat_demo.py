@@ -15,7 +15,7 @@ import seaborn as sns
 import squatting_problem 
 
 timeStep=1.e-2 
-sensitivity = .1
+sensitivity = .2
 solo12_config = Solo12Config() 
 horizon = 300 
 contact_names = ["FL_ANKLE", "FR_ANKLE", "HL_ANKLE", "HR_ANKLE"]
@@ -79,8 +79,8 @@ if __name__ =="__main__":
     solvers += [processRiskSolver]
     solver_names += ["process_risk_uniform"]
 
-
-    measurementRiskSolver = risc.RiskSensitiveSolver(riskProblem, measurementModels, sensitivity)
+    print(" Setting up Risk Sensitive with Measurement Noise ".center(LINE_WIDTH,'-'))
+    measurementRiskSolver = risc.RiskSensitiveSolver(riskProblem, measurementModels, sensitivity, True)
     measurementRiskSolver.callback = [crocoddyl.CallbackLogger(), crocoddyl.CallbackVerbose()]
 
     risk_xs = [xi for xi in fddp.xs]

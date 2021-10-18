@@ -144,7 +144,7 @@ if __name__ =="__main__":
     """ Risk sensitive with both process and measurement noise """
     print(" Setting up Risk Sensitive with Measurement Noise ".center(LINE_WIDTH,'-'))
 
-    measurementRiskSolver = risc.RiskSensitiveSolver(riskProblem, measurementModels, sensitivity)
+    measurementRiskSolver = risc.RiskSensitiveSolver(riskProblem, measurementModels, sensitivity, True)
     measurementRiskSolver.callback = [crocoddyl.CallbackLogger(), crocoddyl.CallbackVerbose()]
 
     risk_xs = [xi for xi in fddp.xs]

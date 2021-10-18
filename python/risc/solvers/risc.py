@@ -105,7 +105,7 @@ class RiskSensitiveSolver(SolverAbstract):
             term2 = d.Fx.dot(self.Covariance[t]).dot(ydata.dx.T)
 
             Lb = scl.cho_factor(term.T , lower=True)
-            G_transpose = scl.cho_solve(Lb, term2)
+            G_transpose = scl.cho_solve(Lb, term2.T)
 
             self.G[t][:,:] = G_transpose.T 
 

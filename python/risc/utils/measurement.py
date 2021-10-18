@@ -62,7 +62,7 @@ class MeasurementModelFullState(object):
         return self.MeasurementDataType(self) 
 
     def calc(self, data, x, u=None): 
-        self.measurement[:] = data.xnext.copy()  
+        self.measurement[:] = self.model.state.diff(data.xnext.copy(), x)  
 
     def calcDiff(self, data, mdata, x , u=None, recalc=True):
         if recalc:
